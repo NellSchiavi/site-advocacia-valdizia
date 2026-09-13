@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\HorarioIndisponivelException;
+use App\Exceptions\TransicaoDeStatusInvalidaException;
 use App\Models\AgendaLock;
 use App\Models\Appointment;
 use App\Models\ConfiguracaoGlobal;
@@ -118,8 +119,13 @@ class AppointmentService
         });
     }
 
+    /**
+     * @throws TransicaoDeStatusInvalidaException
+     */
     public function cancelar(Appointment $appointment, ?string $motivo = null): Appointment
     {
+        $this->garantirTransicaoValida($appointment, Appointment::STATUS_ATIVOS, 'cancelar');
+
         $appointment->status = Appointment::STATUS_CANCELLED;
         $appointment->cancelled_reason = $motivo;
         $appointment->save();
@@ -127,20 +133,67 @@ class AppointmentService
         return $appointment;
     }
 
+    /**
+     * @throws TransicaoDeStatusInvalidaException
+     */
     public function marcarComoConcluido(Appointment $appointment): Appointment
     {
+        $this->garantirTransicaoValida($appointment, [Appointment::STATUS_CONFIRMED], 'marcar como concluída');
+        $this->garantirConsultaJaEncerrada($appointment, 'marcada como concluída');
+
         $appointment->status = Appointment::STATUS_COMPLETED;
         $appointment->save();
 
         return $appointment;
     }
 
+    /**
+     * @throws TransicaoDeStatusInvalidaException
+     */
     public function marcarComoNaoCompareceu(Appointment $appointment): Appointment
     {
+        $this->garantirTransicaoValida($appointment, [Appointment::STATUS_CONFIRMED], 'marcar como não comparecida');
+        $this->garantirConsultaJaEncerrada($appointment, 'marcada como não comparecida');
+
         $appointment->status = Appointment::STATUS_NO_SHOW;
         $appointment->save();
 
         return $appointment;
+    }
+
+    /**
+     * Impede transições de status inválidas (Fase 4B, itens 7 e 9): o status
+     * é sempre lido do model recém-vinculado pela rota (portanto fresco do
+     * banco) — se outra requisição já cancelou/concluiu a consulta, esta
+     * checagem rejeita a ação em vez de sobrescrever o estado silenciosamente.
+     *
+     * @param  array<int, string>  $statusPermitidos
+     *
+     * @throws TransicaoDeStatusInvalidaException
+     */
+    private function garantirTransicaoValida(Appointment $appointment, array $statusPermitidos, string $acao): void
+    {
+        if (! in_array($appointment->status, $statusPermitidos, true)) {
+            throw TransicaoDeStatusInvalidaException::paraAcao($acao, $appointment->status);
+        }
+    }
+
+    /**
+     * COMPLETED/NO_SHOW só podem ser aplicados depois que a consulta já
+     * terminou (Fase 4B.2) — senão o horário seria liberado no
+     * AvailabilityService antes da hora, permitindo double-booking. Critério:
+     * data + hora_fim <= agora (limite inclusive: às 15:00 em ponto, uma
+     * consulta 14:00–15:00 já pode ser marcada).
+     *
+     * @throws TransicaoDeStatusInvalidaException
+     */
+    private function garantirConsultaJaEncerrada(Appointment $appointment, string $descricaoDaAcao): void
+    {
+        $fimDaConsulta = CarbonImmutable::parse("{$appointment->data->toDateString()} {$appointment->hora_fim}");
+
+        if (CarbonImmutable::now()->lt($fimDaConsulta)) {
+            throw TransicaoDeStatusInvalidaException::paraConsultaNaoEncerrada($descricaoDaAcao);
+        }
     }
 
     /**

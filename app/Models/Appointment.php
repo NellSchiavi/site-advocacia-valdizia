@@ -33,6 +33,20 @@ class Appointment extends Model
      */
     public const STATUS_ATIVOS = [self::STATUS_PENDING, self::STATUS_CONFIRMED];
 
+    /**
+     * Rótulos em pt-BR para exibição na agenda administrativa (Fase 4B) —
+     * pura apresentação, não define nenhuma regra de negócio.
+     *
+     * @var array<string, string>
+     */
+    public const STATUS_LABELS = [
+        self::STATUS_PENDING => 'Pendente',
+        self::STATUS_CONFIRMED => 'Confirmada',
+        self::STATUS_CANCELLED => 'Cancelada',
+        self::STATUS_COMPLETED => 'Concluída',
+        self::STATUS_NO_SHOW => 'Não compareceu',
+    ];
+
     protected function casts(): array
     {
         return [

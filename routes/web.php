@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAgendaController;
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\AppointmentController;
@@ -48,6 +49,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::middleware('can:access-admin-panel')->group(function () {
             Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+            // Agenda administrativa (Fase 4B) — só autenticação já não basta:
+            // este grupo herda também o Gate "access-admin-panel" acima.
+            Route::prefix('agenda')->group(function () {
+                Route::get('/', [AdminAgendaController::class, 'index'])->name('agenda');
+                Route::get('/{appointment}', [AdminAgendaController::class, 'show'])->name('agenda.show');
+                Route::post('/{appointment}/cancelar', [AdminAgendaController::class, 'cancelar'])->name('agenda.cancelar');
+                Route::post('/{appointment}/concluir', [AdminAgendaController::class, 'concluir'])->name('agenda.concluir');
+                Route::post('/{appointment}/nao-compareceu', [AdminAgendaController::class, 'naoCompareceu'])->name('agenda.nao-compareceu');
+            });
         });
     });
 });

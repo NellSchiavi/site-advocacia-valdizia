@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Exceptions\HorarioIndisponivelException;
+use App\Exceptions\TransicaoDeStatusInvalidaException;
 use App\Models\AreaAtuacao;
 use App\Models\Appointment;
 use App\Services\AppointmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
 
@@ -27,6 +29,15 @@ class AppointmentServiceTest extends TestCase
         $this->area = $this->criarAreaAtuacao();
         $this->criarExpedientePadrao();
         $this->criarConfiguracaoGlobal();
+    }
+
+    protected function tearDown(): void
+    {
+        // Vários testes desta classe usam travelTo() (Fase 4B.2) — garante
+        // que o "agora" congelado nunca vaze para o próximo teste.
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     private function dadosBase(\Carbon\CarbonImmutable $data, string $horaInicio): array
@@ -187,5 +198,146 @@ class AppointmentServiceTest extends TestCase
 
         $this->expectException(\Illuminate\Validation\ValidationException::class);
         $this->service->agendar($dados);
+    }
+
+    /**
+     * Fase 4B.2 — COMPLETED/NO_SHOW só são permitidos depois que a consulta
+     * já terminou (data + hora_fim <= agora). Todos os cenários usam uma
+     * consulta 14:00–15:00 e travelTo() para controlar o "agora" com
+     * precisão, evitando testes instáveis por depender do relógio real.
+     */
+    public function test_consulta_futura_e_rejeitada_para_marcar_como_concluida(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(10, 0)); // bem antes do início (14:00)
+
+        $this->expectException(TransicaoDeStatusInvalidaException::class);
+        $this->expectExceptionMessage('ainda não terminou');
+        $this->service->marcarComoConcluido($appointment);
+    }
+
+    public function test_consulta_futura_e_rejeitada_para_nao_comparecimento(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(10, 0));
+
+        $this->expectException(TransicaoDeStatusInvalidaException::class);
+        $this->expectExceptionMessage('ainda não terminou');
+        $this->service->marcarComoNaoCompareceu($appointment);
+    }
+
+    public function test_consulta_em_andamento_e_rejeitada_para_marcar_como_concluida(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00')); // 14:00–15:00
+
+        $this->travelTo($segunda->setTime(14, 30)); // consulta em andamento
+
+        $this->expectException(TransicaoDeStatusInvalidaException::class);
+        $this->service->marcarComoConcluido($appointment);
+    }
+
+    public function test_consulta_em_andamento_e_rejeitada_para_nao_comparecimento(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(14, 30));
+
+        $this->expectException(TransicaoDeStatusInvalidaException::class);
+        $this->service->marcarComoNaoCompareceu($appointment);
+    }
+
+    public function test_consulta_encerrada_permite_marcar_como_concluida(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00')); // termina 15:00
+
+        $this->travelTo($segunda->setTime(15, 0)); // limite inclusive: 15:00 em ponto já vale
+
+        $atualizado = $this->service->marcarComoConcluido($appointment);
+
+        $this->assertSame(Appointment::STATUS_COMPLETED, $atualizado->status);
+    }
+
+    public function test_consulta_encerrada_permite_nao_comparecimento(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(15, 0));
+
+        $atualizado = $this->service->marcarComoNaoCompareceu($appointment);
+
+        $this->assertSame(Appointment::STATUS_NO_SHOW, $atualizado->status);
+    }
+
+    public function test_consulta_futura_ainda_pode_ser_cancelada(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(10, 0));
+
+        $cancelado = $this->service->cancelar($appointment, 'Cliente desmarcou');
+
+        $this->assertSame(Appointment::STATUS_CANCELLED, $cancelado->status);
+    }
+
+    public function test_tentativa_rejeitada_nao_altera_o_status_no_banco(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(14, 30)); // em andamento
+
+        try {
+            $this->service->marcarComoConcluido($appointment);
+            $this->fail('Deveria ter lançado TransicaoDeStatusInvalidaException.');
+        } catch (TransicaoDeStatusInvalidaException) {
+            // esperado
+        }
+
+        $this->assertSame(Appointment::STATUS_CONFIRMED, $appointment->fresh()->status);
+    }
+
+    public function test_consulta_futura_rejeitada_como_concluida_nao_libera_o_horario(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(10, 0));
+
+        try {
+            $this->service->marcarComoConcluido($appointment);
+        } catch (TransicaoDeStatusInvalidaException) {
+            // esperado — a consulta continua ativa e ocupando o horário
+        }
+
+        // Comprovado pelo comportamento real da disponibilidade: uma nova
+        // tentativa de agendar o mesmo horário continua sendo barrada.
+        $this->expectException(HorarioIndisponivelException::class);
+        $this->service->agendar($this->dadosBase($segunda, '14:00'));
+    }
+
+    public function test_consulta_futura_rejeitada_como_nao_comparecimento_nao_libera_o_horario(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $appointment = $this->service->agendar($this->dadosBase($segunda, '14:00'));
+
+        $this->travelTo($segunda->setTime(10, 0));
+
+        try {
+            $this->service->marcarComoNaoCompareceu($appointment);
+        } catch (TransicaoDeStatusInvalidaException) {
+            // esperado
+        }
+
+        $this->expectException(HorarioIndisponivelException::class);
+        $this->service->agendar($this->dadosBase($segunda, '14:00'));
     }
 }
