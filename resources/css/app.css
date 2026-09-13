@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+ * Design tokens do site institucional da Dra. Valdizia Melo.
+ * Paleta e tipografia fixadas pela referência visual aprovada
+ * (ver PLANO-TECNICO.md e docs/design-notes.md). Não introduzir
+ * cores novas fora deste bloco — tudo consome estes tokens.
+ */
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: 'Playfair Display', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+
+    --color-verde: #0f2d27;
+    --color-verde-escuro: #0b211d;
+    --color-offwhite: #f7f3eb;
+    --color-bege: #e7dccb;
+    --color-dourado: #b08a55;
+    /* Variante mais escura do dourado, só para texto pequeno sobre fundo claro:
+       o dourado original tem ~2.9:1 de contraste sobre off-white (abaixo do
+       mínimo AA de 4.5:1 para texto). Esta variante atinge ~5.3:1. Usar
+       "dourado" normalmente (fundo escuro, botões, ícones) e "dourado-texto"
+       apenas para labels/links dourados sobre fundo claro. */
+    --color-dourado-texto: #7d5f38;
+    --color-texto: #14212b;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        @apply bg-offwhite text-texto antialiased;
+    }
+
+    /* Evita o "flash" de conteúdo antes do Alpine.js inicializar (menu mobile). */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Foco visível consistente em toda a navegação por teclado (item 14 da Fase 2). */
+    a:focus-visible,
+    button:focus-visible,
+    summary:focus-visible {
+        outline: 2px solid var(--color-dourado);
+        outline-offset: 3px;
+        border-radius: 2px;
+    }
+}
+
+@layer components {
+    /*
+     * Label pequena com tracking largo, usada acima de cada heading de seção.
+     * Não define cor: use "text-dourado" sobre fundo escuro ou
+     * "text-dourado-texto" sobre fundo claro (ver nota de contraste acima).
+     */
+    .eyebrow {
+        @apply text-xs font-semibold tracking-[0.2em] uppercase;
+    }
+
+    /* Botão sólido dourado — CTA primário. */
+    .btn-gold {
+        @apply inline-flex items-center gap-2 rounded-full bg-dourado px-6 py-3 text-sm font-semibold text-verde-escuro shadow-sm transition-colors duration-200 hover:bg-[#9c7a49] focus-visible:outline-offset-4;
+    }
+
+    /* Botão sólido verde-escuro — CTA secundário / header. */
+    .btn-verde {
+        @apply inline-flex items-center gap-2 rounded-full bg-verde px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-verde-escuro;
+    }
+
+    /*
+     * Link discreto com seta, estilo "Saiba mais" / "Ver todas as áreas".
+     * Mesma regra de cor do ".eyebrow" acima — definir text-dourado ou
+     * text-dourado-texto conforme o fundo no local de uso.
+     */
+    .link-arrow {
+        @apply inline-flex items-center gap-1.5 text-sm font-semibold transition-transform duration-200 hover:translate-x-0.5;
+    }
+}
