@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ConsultaCanceladaMail;
 use App\Models\AreaAtuacao;
 use App\Models\Appointment;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
@@ -319,6 +321,46 @@ class AdminAgendaTest extends TestCase
         // eles só saem do banco no endpoint de detalhe, buscado sob demanda.
         $resposta->assertDontSee('privado@example.com');
         $resposta->assertDontSee('11955554444');
+    }
+
+    // ==========================================================
+    // Fase 4E — e-mail de cancelamento manual
+    // ==========================================================
+
+    public function test_cancelamento_manual_dispara_email_de_cancelamento(): void
+    {
+        Mail::fake();
+        $consulta = $this->criarConsulta();
+
+        $this->actingAs($this->admin)->post(route('admin.agenda.cancelar', $consulta), [
+            'motivo' => 'Cliente desmarcou por telefone.',
+        ]);
+
+        Mail::assertSent(ConsultaCanceladaMail::class, fn ($mail) => $mail->hasTo($consulta->email_cliente)
+            && $mail->appointment->id === $consulta->id);
+    }
+
+    public function test_cancelamento_manual_nao_exclui_fisicamente_a_consulta(): void
+    {
+        $consulta = $this->criarConsulta();
+
+        $this->actingAs($this->admin)->post(route('admin.agenda.cancelar', $consulta));
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $consulta->id,
+            'status' => Appointment::STATUS_CANCELLED,
+        ]);
+    }
+
+    public function test_falha_no_envio_do_email_nao_desfaz_cancelamento_manual(): void
+    {
+        Mail::shouldReceive('to')->andThrow(new \RuntimeException('Falha simulada de envio.'));
+        $consulta = $this->criarConsulta();
+
+        $resposta = $this->actingAs($this->admin)->post(route('admin.agenda.cancelar', $consulta));
+
+        $resposta->assertRedirect();
+        $this->assertSame(Appointment::STATUS_CANCELLED, $consulta->fresh()->status);
     }
 
     // ==========================================================

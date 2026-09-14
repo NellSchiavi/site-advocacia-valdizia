@@ -10,10 +10,14 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * E-mail enviado ao cliente quando uma consulta é cancelada por uma
- * alteração administrativa da agenda (Fase 4C, item 10). Usa a arquitetura
- * de mail já existente no projeto (config/mail.php, .env MAIL_*) — nenhum
- * mecanismo de envio paralelo.
+ * E-mail enviado ao cliente quando uma consulta é cancelada — reutilizado
+ * pelos dois caminhos de cancelamento (Fase 4E): manual, pela agenda
+ * administrativa (AdminAgendaController::cancelar()), e por alteração de
+ * disponibilidade (AdminAvailabilityService). Um único template para os
+ * dois: o texto é neutro ("sua consulta foi cancelada"), sem atribuir um
+ * motivo específico que só é verdadeiro para um dos dois caminhos (item 3).
+ * Usa a arquitetura de mail já existente no projeto (config/mail.php, .env
+ * MAIL_*) — nenhum mecanismo de envio paralelo.
  */
 class ConsultaCanceladaMail extends Mailable
 {
@@ -24,7 +28,7 @@ class ConsultaCanceladaMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Cancelamento de consulta — Dra. Valdizia Melo',
+            subject: 'Consulta cancelada — Advocacia e Assessoria Jurídica',
         );
     }
 
@@ -32,6 +36,7 @@ class ConsultaCanceladaMail extends Mailable
     {
         return new Content(
             view: 'emails.consulta-cancelada',
+            text: 'emails.consulta-cancelada-texto',
         );
     }
 }

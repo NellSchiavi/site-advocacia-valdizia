@@ -6,6 +6,7 @@ use App\Exceptions\TransicaoDeStatusInvalidaException;
 use App\Http\Controllers\Controller;
 use App\Models\AreaAtuacao;
 use App\Models\Appointment;
+use App\Services\AppointmentNotificationService;
 use App\Services\AppointmentService;
 use App\Services\AvailabilityService;
 use Carbon\CarbonImmutable;
@@ -26,6 +27,7 @@ class AdminAgendaController extends Controller
     public function __construct(
         private readonly AppointmentService $appointments,
         private readonly AvailabilityService $availability,
+        private readonly AppointmentNotificationService $notificacoes,
     ) {}
 
     public function index(Request $request): View
@@ -160,6 +162,12 @@ class AdminAgendaController extends Controller
         } catch (TransicaoDeStatusInvalidaException $e) {
             return back()->withErrors(['acao' => $e->getMessage()]);
         }
+
+        // Fora do fluxo de status em si (cancelar() já persistiu): mesma
+        // regra dos demais caminhos de cancelamento (item 5/12) — e-mail só
+        // depois que o cancelamento já está salvo, falha nunca desfaz nada.
+        $appointment->load('areaAtuacao:id,nome');
+        $this->notificacoes->enviarCancelamento($appointment);
 
         return back()->with('status', 'Consulta cancelada.');
     }

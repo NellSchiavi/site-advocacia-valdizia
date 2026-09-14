@@ -6,6 +6,7 @@ use App\Exceptions\HorarioIndisponivelException;
 use App\Http\Requests\AgendarConsultaRequest;
 use App\Models\AreaAtuacao;
 use App\Models\Appointment;
+use App\Services\AppointmentNotificationService;
 use App\Services\AppointmentService;
 use App\Services\AvailabilityService;
 use Carbon\CarbonImmutable;
@@ -73,8 +74,11 @@ class AppointmentController extends Controller
         return response()->json(['horarios' => $slots]);
     }
 
-    public function store(AgendarConsultaRequest $request, AppointmentService $appointments): RedirectResponse
-    {
+    public function store(
+        AgendarConsultaRequest $request,
+        AppointmentService $appointments,
+        AppointmentNotificationService $notificacoes
+    ): RedirectResponse {
         try {
             $appointment = $appointments->agendar($request->validated());
         } catch (HorarioIndisponivelException) {
@@ -82,6 +86,12 @@ class AppointmentController extends Controller
                 'hora_inicio' => 'Este horário acabou de ser reservado. Por favor, escolha outro horário.',
             ]);
         }
+
+        // E-mail de confirmação só depois que agendar() já retornou — a
+        // transação já commitou, então uma falha de envio nunca desfaz o
+        // agendamento nem impede a resposta ao cliente (item 5/14).
+        $appointment->load('areaAtuacao:id,nome');
+        $notificacoes->enviarConfirmacao($appointment);
 
         // URL assinada e temporária (2 dias): evita que alguém descubra a
         // confirmação de outra pessoa incrementando o ID na URL, e limita por

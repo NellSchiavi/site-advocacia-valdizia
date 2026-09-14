@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Exceptions\AlteracaoDeAgendaAfetaConsultasException;
-use App\Mail\ConsultaCanceladaMail;
 use App\Models\AdminLog;
 use App\Models\Appointment;
 use App\Models\AvailabilityException;
@@ -14,8 +13,6 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Orquestra alterações administrativas de disponibilidade (Fase 4C):
@@ -49,6 +46,7 @@ class AdminAvailabilityService
     public function __construct(
         private readonly AppointmentService $appointments,
         private readonly AvailabilityService $availability,
+        private readonly AppointmentNotificationService $notificacoes,
     ) {}
 
     /**
@@ -283,6 +281,7 @@ class AdminAvailabilityService
         return Appointment::query()
             ->ativos()
             ->naData($data)
+            ->with('areaAtuacao:id,nome')
             ->get()
             ->filter(function (Appointment $consulta) use ($abertos) {
                 $inicio = $this->availability->paraMinutos($consulta->hora_inicio);
@@ -364,22 +363,18 @@ class AdminAvailabilityService
 
     /**
      * Só é chamado depois que DB::transaction() já retornou com sucesso —
-     * ou seja, a alteração e os cancelamentos já estão persistidos. Uma
-     * falha de e-mail nunca desfaz nem corrompe a operação administrativa
-     * (item 23): cada envio é isolado, uma falha não impede as demais
-     * notificações nem propaga para quem chamou este serviço.
+     * ou seja, a alteração e os cancelamentos já estão persistidos. Delega a
+     * AppointmentNotificationService (Fase 4E) — mesmo mecanismo de envio e
+     * de tratamento de falha usado pelo cancelamento manual e pela
+     * confirmação de agendamento, para não haver duas implementações
+     * diferentes para o mesmo tipo de comunicação (item 4). Cada envio é
+     * isolado ali dentro: uma falha não impede as demais notificações nem
+     * propaga para quem chamou este serviço.
      */
     private function enviarEmailsDeCancelamento(Collection $afetadas): void
     {
         foreach ($afetadas as $consulta) {
-            try {
-                Mail::to($consulta->email_cliente)->send(new ConsultaCanceladaMail($consulta));
-            } catch (\Throwable $e) {
-                Log::warning('Falha ao enviar e-mail de cancelamento administrativo.', [
-                    'appointment_id' => $consulta->id,
-                    'erro' => $e->getMessage(),
-                ]);
-            }
+            $this->notificacoes->enviarCancelamento($consulta);
         }
     }
 }

@@ -192,6 +192,7 @@ class AdminAvailabilityTest extends TestCase
 
     public function test_atualizacao_de_horario_com_consulta_afetada_exige_confirmacao_e_nao_aplica(): void
     {
+        Mail::fake();
         $segunda = $this->proximaSegundaFeira();
         $consulta = $this->criarConsulta($segunda, '16:00:00', '17:00:00');
 
@@ -210,6 +211,9 @@ class AdminAvailabilityTest extends TestCase
         // Nada foi persistido — rollback completo (item 7).
         $this->assertDatabaseHas('availability_rules', ['day_of_week' => 1, 'hora_fim' => '18:00:00']);
         $this->assertSame(Appointment::STATUS_CONFIRMED, $consulta->fresh()->status);
+        // Fase 4E, item 18: alteração não confirmada não cancela e, portanto,
+        // não deve disparar nenhum e-mail de cancelamento.
+        Mail::assertNothingSent();
     }
 
     public function test_confirmacao_de_horario_cancela_consultas_afetadas_registra_log_e_envia_email(): void
@@ -229,6 +233,108 @@ class AdminAvailabilityTest extends TestCase
         $this->assertDatabaseHas('availability_rules', ['day_of_week' => 1, 'hora_fim' => '15:00:00']);
         $this->assertDatabaseHas('admin_logs', ['acao' => 'disponibilidade.horario_padrao.atualizado']);
         Mail::assertSent(ConsultaCanceladaMail::class, fn ($mail) => $mail->hasTo($consulta->email_cliente));
+    }
+
+    /**
+     * Fase 4E, item 15/18: mais de uma consulta afetada pela mesma alteração
+     * deve gerar uma notificação individual por consulta, cada uma para o
+     * respectivo destinatário — nunca um e-mail só ou um destinatário errado.
+     */
+    public function test_multiplas_consultas_afetadas_geram_notificacoes_individuais(): void
+    {
+        Mail::fake();
+        $segunda = $this->proximaSegundaFeira();
+
+        $consultaA = Appointment::query()->create([
+            'area_atuacao_id' => $this->area->id,
+            'nome_cliente' => 'Cliente A',
+            'email_cliente' => 'cliente.a@example.com',
+            'telefone_cliente' => '11999990001',
+            'assunto' => 'Assunto A',
+            'data' => $segunda->toDateString(),
+            'hora_inicio' => '16:00:00',
+            'hora_fim' => '17:00:00',
+        ])->fresh();
+
+        $consultaB = Appointment::query()->create([
+            'area_atuacao_id' => $this->area->id,
+            'nome_cliente' => 'Cliente B',
+            'email_cliente' => 'cliente.b@example.com',
+            'telefone_cliente' => '11999990002',
+            'assunto' => 'Assunto B',
+            'data' => $segunda->addWeek()->toDateString(),
+            'hora_inicio' => '16:00:00',
+            'hora_fim' => '17:00:00',
+        ])->fresh();
+
+        $canceladas = $this->disponibilidade->atualizarRegraSemanal(1, [
+            'hora_inicio' => '09:00:00',
+            'hora_fim' => '15:00:00',
+            'ativo' => true,
+        ], $this->admin, true);
+
+        $this->assertCount(2, $canceladas);
+        Mail::assertSent(ConsultaCanceladaMail::class, 2);
+        Mail::assertSent(ConsultaCanceladaMail::class, fn ($mail) => $mail->hasTo('cliente.a@example.com'));
+        Mail::assertSent(ConsultaCanceladaMail::class, fn ($mail) => $mail->hasTo('cliente.b@example.com'));
+    }
+
+    /**
+     * Fase 4E, item 15/18: falha ao notificar UMA consulta afetada não pode
+     * impedir a tentativa de notificar as demais, e a persistência (todas
+     * canceladas) não depende do resultado do envio de e-mail.
+     */
+    public function test_falha_ao_notificar_uma_consulta_nao_impede_notificacao_das_demais(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+
+        $consultaComFalha = Appointment::query()->create([
+            'area_atuacao_id' => $this->area->id,
+            'nome_cliente' => 'Cliente Falha',
+            'email_cliente' => 'falha@example.com',
+            'telefone_cliente' => '11999990003',
+            'assunto' => 'Assunto Falha',
+            'data' => $segunda->toDateString(),
+            'hora_inicio' => '16:00:00',
+            'hora_fim' => '17:00:00',
+        ])->fresh();
+
+        $consultaOk = Appointment::query()->create([
+            'area_atuacao_id' => $this->area->id,
+            'nome_cliente' => 'Cliente Ok',
+            'email_cliente' => 'ok@example.com',
+            'telefone_cliente' => '11999990004',
+            'assunto' => 'Assunto Ok',
+            'data' => $segunda->addWeek()->toDateString(),
+            'hora_inicio' => '16:00:00',
+            'hora_fim' => '17:00:00',
+        ])->fresh();
+
+        // "falha@example.com" nunca consegue enviar; qualquer outro destino
+        // funciona normalmente — prova que a falha de um não contamina o
+        // outro nem interrompe o laço de notificação.
+        Mail::shouldReceive('to')
+            ->twice()
+            ->andReturnUsing(function (string $to) {
+                if ($to === 'falha@example.com') {
+                    throw new \RuntimeException('Falha simulada de envio.');
+                }
+
+                return new class
+                {
+                    public function send($mailable): void {}
+                };
+            });
+
+        $canceladas = $this->disponibilidade->atualizarRegraSemanal(1, [
+            'hora_inicio' => '09:00:00',
+            'hora_fim' => '15:00:00',
+            'ativo' => true,
+        ], $this->admin, true);
+
+        $this->assertCount(2, $canceladas);
+        $this->assertSame(Appointment::STATUS_CANCELLED, $consultaComFalha->fresh()->status);
+        $this->assertSame(Appointment::STATUS_CANCELLED, $consultaOk->fresh()->status);
     }
 
     public function test_consulta_nao_afetada_permanece_confirmada_apos_alteracao_de_outro_dia(): void

@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ConsultaConfirmadaMail;
 use App\Models\AreaAtuacao;
 use App\Models\Appointment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
 
@@ -161,6 +163,49 @@ class AgendamentoPublicoTest extends TestCase
         $this->assertSame(Appointment::STATUS_CONFIRMED, $appointment->status);
         $this->assertSame('Cliente Teste', $appointment->nome_cliente);
         $this->assertSame($segunda->toDateString(), $appointment->data->toDateString());
+    }
+
+    // ==========================================================
+    // Fase 4E — e-mail de confirmação
+    // ==========================================================
+
+    public function test_agendamento_valido_dispara_email_de_confirmacao(): void
+    {
+        Mail::fake();
+        $segunda = $this->proximaSegundaFeira();
+
+        $this->post(route('agendamento.store'), $this->dadosValidos($segunda, '09:00'));
+
+        $appointment = Appointment::query()->firstOrFail();
+
+        Mail::assertSent(ConsultaConfirmadaMail::class, fn ($mail) => $mail->hasTo($appointment->email_cliente)
+            && $mail->appointment->id === $appointment->id);
+    }
+
+    public function test_email_de_confirmacao_contem_nome_area_assunto_data_e_horario(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->post(route('agendamento.store'), $this->dadosValidos($segunda, '09:00'));
+        $appointment = Appointment::query()->firstOrFail()->load('areaAtuacao');
+
+        $html = (new ConsultaConfirmadaMail($appointment))->render();
+
+        $this->assertStringContainsString($appointment->nome_cliente, $html);
+        $this->assertStringContainsString($appointment->areaAtuacao->nome, $html);
+        $this->assertStringContainsString($appointment->assunto, $html);
+        $this->assertStringContainsString('09:00', $html);
+    }
+
+    public function test_falha_no_envio_do_email_de_confirmacao_nao_desfaz_o_agendamento(): void
+    {
+        Mail::shouldReceive('to')->andThrow(new \RuntimeException('Falha simulada de envio.'));
+        $segunda = $this->proximaSegundaFeira();
+
+        $resposta = $this->post(route('agendamento.store'), $this->dadosValidos($segunda, '09:00'));
+
+        $appointment = Appointment::query()->firstOrFail();
+        $resposta->assertRedirect();
+        $this->assertSame(Appointment::STATUS_CONFIRMED, $appointment->status);
     }
 
     public function test_agendamento_duplicado_no_mesmo_horario_e_rejeitado_com_mensagem_amigavel(): void
