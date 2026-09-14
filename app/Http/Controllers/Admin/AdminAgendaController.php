@@ -106,6 +106,7 @@ class AdminAgendaController extends Controller
             'nome_cliente' => $appointment->nome_cliente,
             'email_cliente' => $appointment->email_cliente,
             'telefone_cliente' => $appointment->telefone_cliente,
+            'assunto' => $appointment->assunto,
             'area' => $appointment->areaAtuacao->nome,
             'data' => $appointment->data->toDateString(),
             'hora_inicio' => $appointment->hora_inicio,

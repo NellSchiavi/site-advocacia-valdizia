@@ -1,10 +1,10 @@
 # Site Dra. Valdizia Melo — Advocacia e Assessoria Jurídica
 
-Site institucional com sistema de agendamento de consultas para a Dra. Valdizia Melo (Direito Previdenciário, Cível e de Família).
+Site institucional com sistema de agendamento de consultas e painel administrativo para a Dra. Valdizia Melo (Direito Previdenciário, Cível e de Família).
 
 > Planejamento técnico completo (arquitetura, schema, decisões e riscos) em [`PLANO-TECNICO.md`](./PLANO-TECNICO.md). Este README cobre apenas o dia a dia de desenvolvimento.
 
-**Status atual**: Fase 3 concluída (homepage + fluxo público de agendamento) e correções pós-auditoria (Fase 3.2) aplicadas. **Ainda não há painel administrativo nem envio de e-mail** — ver "O que ainda não foi implementado" abaixo.
+**Status atual**: fluxo público de agendamento e painel administrativo completos — autenticação, agenda (consultas, cancelamento/conclusão/não comparecimento) e configuração de disponibilidade (horários semanais, exceções, feriados, bloqueios). **Ainda não há envio de e-mail configurado para produção nem ambiente de produção/Locaweb** — ver "O que ainda não foi implementado" abaixo.
 
 ## Stack
 
@@ -18,22 +18,34 @@ Site institucional com sistema de agendamento de consultas para a Dra. Valdizia 
 
 ## O que já foi implementado
 
+### Site público
 - **Homepage** institucional (Blade + Tailwind), com áreas de atuação, e link para a Política de Privacidade (conteúdo placeholder — ver seção abaixo).
-- **Agendamento público** (`/agendamento`): wizard em 5 passos (Área → Data → Horário → Dados → Confirmação) construído com Alpine.js sobre os endpoints de disponibilidade.
-- **Disponibilidade real**, calculada pelo `AvailabilityService` (única fonte de verdade, usada tanto pelos endpoints públicos quanto pela revalidação no momento de gravar o agendamento): expediente semanal, exceções pontuais, feriados, bloqueios parciais e agendamentos já existentes.
-- **Proteção contra concorrência**: lock transacional por data (`agenda_locks` + `SELECT ... FOR UPDATE`) + revalidação da disponibilidade dentro da transação + índice único como rede de segurança adicional — impede que duas reservas simultâneas ocupem o mesmo horário (comprovado com conexões MySQL reais em `AppointmentConcurrencyTest`, incluindo um teste com processos concorrentes via `pcntl_fork` quando disponível).
-- **Área de atuação inativa não pode ser agendada**: a regra (`exists:areas_atuacao,id,ativo,1`) é aplicada tanto no `AgendarConsultaRequest` (camada HTTP) quanto dentro do `AppointmentService::agendar()` (camada de serviço) — não depende só do frontend esconder a opção.
-- **URL de confirmação assinada e temporária**: gerada com `URL::temporarySignedRoute()`, válida por **2 dias**, protegida pelo middleware `signed` do Laravel. Uma assinatura adulterada, expirada, ou gerada para outro agendamento é rejeitada com 403 — a página nunca expõe dados de um agendamento que não seja o assinado.
-- **Tratamento explícito de falha de API no wizard** (`resources/js/agendamento.js`): resposta HTTP não-2xx (incluindo 429 de rate limit), erro de rede, timeout de conexão lenta e corpo de resposta que não é JSON válido nunca são interpretados como "não há horários disponíveis" — sempre aparece um estado de erro coerente com o design ("Não foi possível carregar a disponibilidade. Verifique sua conexão e tente novamente.") com botão "Tentar novamente", sem uso de `alert()` nativo.
-- **Rate limiting**: `throttle:60,1` nos endpoints de consulta de disponibilidade/horários e `throttle:10,1` no envio do formulário de agendamento.
-- **Política de Privacidade**: página publicada em `/politica-de-privacidade`, com conteúdo placeholder (texto genérico) — precisa ser revisado por um advogado antes de qualquer uso em produção.
+- **Agendamento público** (`/agendamento`): wizard em 5 passos (Área → Data → Horário → Dados → Confirmação). Dados obrigatórios do cliente: nome, e-mail, telefone e **assunto** da consulta (observação continua opcional) — validados no backend (`AgendarConsultaRequest` e `AppointmentService::agendar()`), nunca só no frontend.
+- **Disponibilidade real**, calculada pelo `AvailabilityService` (**única fonte de verdade**, usada pelo fluxo público, pela agenda administrativa e pela configuração de disponibilidade): expediente semanal → exceções da data → feriado → agendamentos já existentes.
+- **Proteção contra concorrência**: lock transacional por data (`agenda_locks` + `SELECT ... FOR UPDATE`) + revalidação da disponibilidade dentro da transação + índice único como rede de segurança adicional. Alterações administrativas de disponibilidade reaproveitam o mesmo lock, adquirido em ordem cronológica quando mais de uma data é afetada, para nunca gerar deadlock com uma reserva pública concorrente.
+- **URL de confirmação assinada e temporária** (`URL::temporarySignedRoute()`, válida por 2 dias, middleware `signed`).
+- **Tratamento explícito de falha de API** no wizard (`resources/js/agendamento.js`): nunca confunde erro técnico com "sem horários".
+- **Rate limiting**: `throttle:60,1` nos endpoints de disponibilidade/horários, `throttle:10,1` no envio do agendamento e no login administrativo.
+- **Política de Privacidade**: página em `/politica-de-privacidade`, conteúdo placeholder — precisa de revisão jurídica antes de produção.
+
+### Painel administrativo (`/admin`)
+- **Login** (`/admin/login`) com e-mail/senha, hash nativo do Laravel, rate limiting por e-mail+IP (5 tentativas) além do `throttle` da rota, mensagem genérica de erro ("Credenciais inválidas.") que nunca revela se o e-mail existe.
+- **Autorização**: todas as rotas de `/admin/*` (exceto login) exigem `auth` + `Gate` `access-admin-panel` (baseado em `users.role`) — nunca confia em dado vindo do frontend para decidir permissão.
+- **Dashboard**: números reais do banco (consultas de hoje, confirmadas, futuras, áreas ativas).
+- **Agenda** (`/admin/agenda`): visão diária/semanal, filtros por data/status/área, detalhe de cada consulta (nome, e-mail, telefone, assunto, observação, status, histórico) buscado sob demanda — nunca pré-carregado na listagem (minimização de dados pessoais). Ações **cancelar**, **concluir** e **marcar não comparecimento**, cada uma como uma rota explícita (o backend nunca aceita um campo `status` arbitrário vindo do cliente). `concluir`/`não comparecimento` só são permitidos depois que a consulta já terminou (`data + hora_fim <= agora`) — evita liberar por engano um horário futuro para um novo cliente.
+- **Disponibilidade** (`/admin/disponibilidade`): a Dra. configura, sem tocar em código:
+  - **Horários semanais** — hora inicial/final e ativo/inativo por dia da semana;
+  - **Exceções de horário** — uma data específica com janela diferente da regra padrão;
+  - **Feriados** — data(s) tratada(s) como indisponíveis;
+  - **Bloqueios de dia inteiro** — "sem atendimento" numa data, com motivo opcional.
+
+  Qualquer alteração que afetaria consultas já agendadas **nunca é aplicada silenciosamente**: o sistema detecta o conflito (reaproveitando o próprio `AvailabilityService`, nunca uma segunda lógica de disponibilidade), mostra exatamente quais consultas seriam canceladas (data, horário, cliente) e só executa após confirmação explícita. Ao confirmar: a alteração de disponibilidade e o cancelamento das consultas afetadas acontecem na **mesma transação** (nunca um estado parcial); o cliente recebe um e-mail de cancelamento (uma falha de envio nunca desfaz a operação, já commitada); e tudo fica registrado no `AdminLog` (quem, o quê, quando, estado anterior/novo).
 
 ## O que ainda não foi implementado
 
-- Painel administrativo (agenda, bloqueios, feriados, áreas de atuação, configurações).
-- Autenticação administrativa (login/logout, proteção de rotas de admin).
-- Configuração de agenda pelo painel (hoje os dados de expediente/configuração global só existem via seeders/Tinker).
-- Envio de e-mail real (confirmação para o cliente, notificação interna) — em desenvolvimento o Mailpit captura tudo localmente, mas não há nenhuma `Mailable`/notificação implementada ainda.
+- Envio de e-mail real em produção — o `Mailable` (`ConsultaCanceladaMail`) e a arquitetura de mail já existem e funcionam (capturados pelo Mailpit em desenvolvimento); falta configurar um provedor real (Resend ou SMTP do domínio) nas variáveis de ambiente de produção.
+- Configuração de agenda pelo painel: duração da consulta e intervalo entre consultas continuam centralizados em `configuracoes_globais` (55 min + 5 min, não editável pela Dra. nesta fase).
+- Múltiplos perfis administrativos (hoje só existe o papel `admin`).
 - Configuração de ambiente de produção/Locaweb (hospedagem, domínio, certificado, variáveis de produção).
 
 ## Requisitos
@@ -76,7 +88,7 @@ docker compose exec laravel.test npm install
 docker compose exec laravel.test npm run build
 ```
 
-A aplicação fica disponível em `http://localhost` e o Mailpit (captura de e-mails locais, sem envio real) em `http://localhost:8025`.
+A aplicação fica disponível em `http://localhost`, o painel administrativo em `http://localhost/admin/login`, e o Mailpit (captura de e-mails locais, sem envio real) em `http://localhost:8025`.
 
 ### Nota sobre rede corporativa com inspeção TLS (proxy/antivírus)
 
@@ -102,7 +114,7 @@ A pasta vazia não tem nenhum efeito — isso só é necessário se você realme
 | Recriar o banco do zero + seeders | `docker compose exec laravel.test php artisan migrate:fresh --seed` |
 | Rodar os seeders (sem recriar o schema) | `docker compose exec laravel.test php artisan db:seed` |
 | Rodar toda a suíte de testes | `docker compose exec laravel.test php artisan test` |
-| Rodar só um arquivo de teste | `docker compose exec laravel.test php artisan test --filter=AppointmentServiceTest` |
+| Rodar só um arquivo de teste | `docker compose exec laravel.test php artisan test --filter=AdminAvailabilityTest` |
 | Build de produção dos assets (Vite) | `docker compose exec laravel.test npm run build` |
 | Servidor de desenvolvimento do Vite (hot reload) | `docker compose exec laravel.test npm run dev` |
 | Abrir o Tinker (console interativo) | `docker compose exec laravel.test php artisan tinker` |
@@ -112,74 +124,79 @@ A pasta vazia não tem nenhum efeito — isso só é necessário se você realme
 O comando `php artisan db:seed` cria:
 
 - **Usuária administradora de desenvolvimento**: `dev@valdiziamelo.local` / `TrocarEssaSenha123!`
-  ⚠️ **Credencial de desenvolvimento apenas — nunca a senha real da cliente.** Deve ser trocada antes de qualquer uso fora do ambiente local/homologação. Sem efeito prático hoje, já que não há painel/login administrativo implementado ainda.
+  ⚠️ **Credencial de desenvolvimento apenas — nunca a senha real da cliente.** Deve ser trocada antes de qualquer uso fora do ambiente local/homologação (via Tinker, ou pela tela de login já pedindo a senha real depois de trocada no banco).
 - 3 áreas de atuação (Direito Previdenciário, Direito de Família, Direito Civil), todas ativas.
-- Expediente padrão: segunda a sexta, 09:00–18:00 (sábado, domingo e feriados nascem bloqueados por não terem regra).
-- Feriados nacionais fixos (recorrência anual). Feriados móveis (Carnaval, Sexta-feira Santa, Corpus Christi) precisam ser cadastrados manualmente todo ano — não são chutados no seeder.
-- Configuração global: consulta de 60 minutos, sem intervalo entre consultas, antecedência mínima de 2h e máxima de 60 dias, modo de confirmação automático.
-
-Todos esses valores serão reconfiguráveis pelo futuro painel administrativo — por enquanto só são editáveis via seeder ou Tinker.
+- **Expediente padrão**: segunda a quinta 09:00–18:00, sexta 09:00–17:00; sábado e domingo nascem sem atendimento (sem regra cadastrada). Reconfigurável pela Dra. em `/admin/disponibilidade` a qualquer momento.
+- Feriados nacionais fixos (recorrência anual) **+ o feriado municipal de Ferraz de Vasconcelos (14/10)**. Feriados móveis (Carnaval, Sexta-feira Santa, Corpus Christi) precisam ser cadastrados manualmente todo ano pela tela de Feriados — não são chutados no seeder.
+- Configuração global: consulta de **55 minutos** com **5 minutos** de intervalo, antecedência mínima de 2h e máxima de 60 dias, modo de confirmação automático. Duração e intervalo não são editáveis pelo painel nesta fase (ficam centralizados aqui, de propósito).
 
 ## Variáveis de ambiente
 
 Ver `.env.example` para a lista completa e comentada. Nenhuma credencial real está commitada — apenas valores de desenvolvimento local (Sail/MySQL/Mailpit). Destaques:
 
-- `APP_TIMEZONE=America/Sao_Paulo`, `APP_LOCALE=pt_BR` — timezone e locale da aplicação já configurados para o Brasil (`config/app.php` lê esses valores do `.env`, nunca hardcoded).
-- `DB_*` — em desenvolvimento aponta para o serviço `mysql` do `compose.yaml`; em homologação/produção deve apontar para o MySQL real do ambiente via variáveis de ambiente do próprio host (nunca editar código para trocar de banco).
-- `MAIL_*` — em desenvolvimento usa o Mailpit (não envia e-mail de verdade). Não há nenhum envio de e-mail implementado ainda no código (ver "O que ainda não foi implementado").
-- `NOTIFICATION_EMAIL` — endereço reservado para a futura notificação interna de cada novo agendamento (ainda sem uso no código).
+- `APP_TIMEZONE=America/Sao_Paulo`, `APP_LOCALE=pt_BR` — timezone e locale da aplicação já configurados para o Brasil.
+- `DB_*` — em desenvolvimento aponta para o serviço `mysql` do `compose.yaml`; em produção deve apontar para o MySQL real via variáveis de ambiente do próprio host.
+- `MAIL_*` — em desenvolvimento usa o Mailpit (`MAIL_MAILER=smtp`, `MAIL_HOST=mailpit`), sem envio real. Em produção, apontar para um provedor real (Resend ou SMTP do domínio) através destas mesmas variáveis — o código (`App\Mail\ConsultaCanceladaMail`) não muda, só a configuração.
+- `QUEUE_CONNECTION` — hoje os e-mails são enviados de forma síncrona logo após a transação de banco confirmar (uma falha de envio é registrada em log e nunca desfaz a operação). A tabela `jobs` já existe caso o envio precise ser movido para fila no futuro.
+- `SESSION_SECURE_COOKIE` — documentado no próprio `.env.example`: definir como `true` em produção (HTTPS), deixado sem valor em desenvolvimento local (`http://localhost`).
 
 ## Estrutura do projeto
 
 ```
 app/
   Exceptions/
-    HorarioIndisponivelException.php   # lançada quando um slot deixou de estar disponível
+    HorarioIndisponivelException.php              # slot deixou de estar disponível no momento de agendar
+    TransicaoDeStatusInvalidaException.php        # ação de status inválida pro estado/tempo atual da consulta
+    AlteracaoDeAgendaAfetaConsultasException.php  # alteração administrativa afeta consultas — exige confirmação
   Http/
-    Controllers/AppointmentController.php   # fluxo público de agendamento (HTTP <-> serviços de domínio)
-    Requests/AgendarConsultaRequest.php      # validação do formulário de agendamento (inclui área ativa)
+    Controllers/AppointmentController.php          # fluxo público de agendamento
+    Controllers/Admin/AdminAuthController.php       # login/logout do painel
+    Controllers/Admin/AdminDashboardController.php  # dashboard
+    Controllers/Admin/AdminAgendaController.php     # agenda administrativa (consultas)
+    Controllers/Admin/AdminAvailabilityController.php # disponibilidade administrativa (horários/exceções/feriados/bloqueios)
+    Requests/AgendarConsultaRequest.php             # validação do formulário público (inclui área ativa e assunto)
+    Requests/Admin/AdminLoginRequest.php            # autenticação + rate limit do login admin
+  Mail/ConsultaCanceladaMail.php                    # e-mail de cancelamento por alteração administrativa
   Models/
     User, AreaAtuacao, AvailabilityRule, AvailabilityException,
     Holiday, ConfiguracaoGlobal, Appointment, AgendaLock, AdminLog
   Services/
-    AvailabilityService.php   # única fonte de verdade da disponibilidade (pipeline documentado no código)
-    AppointmentService.php    # fluxo de criação/cancelamento de agendamento, com lock + checagem de sobreposição
+    AvailabilityService.php         # única fonte de verdade da disponibilidade (pipeline documentado no código)
+    AppointmentService.php          # criação/cancelamento/transição de status de agendamento
+    AdminAvailabilityService.php    # orquestra alterações administrativas: detecta conflito, cancela, notifica, audita
 database/
   migrations/    # schema versionado (ver PLANO-TECNICO.md seção 5 para o desenho completo)
   seeders/       # dados iniciais de desenvolvimento (ver seção "Seeders" acima)
 docker/
   8.3/           # build context do container da aplicação (baseado no runtime oficial do Sail)
 resources/
-  views/pages/   # homepage, agendamento (wizard), confirmação, política de privacidade
-  js/agendamento.js   # lógica do wizard de agendamento (Alpine.js) + tratamento de falha de API
+  views/pages/       # homepage, agendamento (wizard), confirmação, política de privacidade
+  views/admin/        # login, dashboard, agenda e disponibilidade do painel
+  views/emails/        # e-mail de cancelamento
+  js/agendamento.js    # wizard de agendamento público (Alpine.js) + tratamento de falha de API
+  js/agenda-admin.js   # modal de detalhe/ações da agenda administrativa
 tests/
-  Concerns/SeedsAgendaFixtures.php   # fixtures compartilhadas pelos testes de agenda
+  Concerns/SeedsAgendaFixtures.php
   Feature/AvailabilityServiceTest.php
   Feature/AppointmentServiceTest.php
   Feature/AppointmentConcurrencyTest.php
-  Feature/AgendamentoPublicoTest.php   # fluxo HTTP público: página, endpoints, submissão, confirmação assinada
+  Feature/AgendamentoPublicoTest.php
+  Feature/AdminAuthTest.php
+  Feature/AdminAgendaTest.php
+  Feature/AdminAvailabilityTest.php
 PLANO-TECNICO.md   # arquitetura, decisões, riscos e especificação completa do projeto
 ```
 
-Ainda não existem controllers, rotas ou views do painel administrativo — só o fluxo público (homepage + agendamento) está implementado.
-
 ## Testes automatizados
 
-A suíte tem **42 testes** (97 assertions), cobrindo:
+A suíte tem **108 testes** (293 assertions). Cobre, entre outras coisas:
 
-- horário comercial, sábado/domingo bloqueados, feriado bloqueado, data bloqueada manualmente;
-- horário disponível vs. já ocupado;
-- duração da consulta e intervalo entre consultas configuráveis (não hardcoded);
-- sobreposição total (mesmo horário) e parcial (com duração diferente);
-- consultas adjacentes permitidas (não sobrepõem);
-- cancelamento libera o horário para novo agendamento;
-- modo de confirmação automático vs. manual (`configuracoes_globais.modo_confirmacao`);
-- concorrência: um lock transacional por data (`agenda_locks` + `SELECT ... FOR UPDATE`) impede que duas reservas simultâneas ocupem a mesma data até a primeira commitar — comprovado com duas conexões MySQL reais e, quando `pcntl_fork` está disponível, com processos concorrentes de verdade (`AppointmentConcurrencyTest`);
-- área de atuação inativa é rejeitada tanto na validação do formulário quanto dentro do serviço de agendamento;
-- data passada e horário fora da grade de horários são rejeitados;
-- os endpoints de disponibilidade/horários retornam 422 para uma área de atuação inexistente;
-- o envio do formulário de agendamento respeita o rate limit (`throttle:10,1`) e retorna 429 ao ser excedido;
-- a URL de confirmação assinada: aceita uma assinatura válida, rejeita assinatura inválida, rejeita quando expirada (após os 2 dias de validade) e rejeita quando gerada para um agendamento diferente do solicitado.
+- toda a resolução de disponibilidade (expediente, exceções, feriados, bloqueios, sobreposição, duração/intervalo configuráveis);
+- concorrência: lock transacional por data impede dupla reserva (com processos concorrentes reais via `pcntl_fork` quando disponível);
+- fluxo público completo (validação, criação, confirmação assinada e temporária, rate limit);
+- autenticação e autorização administrativa (Gate, rate limit de login, mensagens genéricas);
+- agenda administrativa (listagem, filtros, detalhe, cancelar/concluir/não comparecimento, regra temporal — só permitido depois que a consulta termina);
+- disponibilidade administrativa: alteração de horário/exceção/feriado/bloqueio sem consultas afetadas aplica direto; com consultas afetadas exige confirmação explícita e não aplica nada até confirmar; confirmação cancela as consultas, envia e-mail (`Mail::fake()`), grava `AdminLog` e preserva o registro histórico (nunca apaga); falha simulada de e-mail não interrompe o cancelamento.
 
 Rodar tudo:
 
@@ -189,7 +206,6 @@ docker compose exec laravel.test php artisan test
 
 ## Próximos passos
 
-- Painel administrativo (login, agenda, configurações, bloqueios, feriados).
-- Integração de envio de e-mail real (confirmações e notificações internas).
+- Configuração de produção (Locaweb): domínio, certificado, variáveis de ambiente, provedor de e-mail real.
 - Revisão jurídica do conteúdo da Política de Privacidade (hoje é placeholder).
-- Ambiente de produção (Locaweb) — domínio, certificado, variáveis de ambiente e deploy.
+- Avaliar necessidade de múltiplos perfis administrativos (ex.: secretária) e de mover o envio de e-mail para fila conforme o volume crescer.

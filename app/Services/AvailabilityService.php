@@ -57,6 +57,30 @@ class AvailabilityService
         return false;
     }
 
+    /**
+     * Intervalos "abertos" do expediente do dia — feriado, regra padrão e
+     * exceções já resolvidos, mas ANTES de descontar os agendamentos
+     * existentes. Usado pela camada administrativa (Fase 4C) para checar se
+     * uma consulta já existente ainda cabe no expediente depois de uma
+     * alteração de disponibilidade, sem duplicar a resolução de
+     * regra/exceção/feriado que já vive aqui — só reaproveita os mesmos
+     * passos internos que horariosDisponiveis() já usa antes de gerar slots.
+     *
+     * @return array<int, array{0: int, 1: int}> intervalos em minutos desde a meia-noite
+     */
+    public function intervalosAbertosDoDia(CarbonInterface $data): array
+    {
+        $data = CarbonImmutable::parse($data)->startOfDay();
+
+        if ($this->diaBloqueadoPorFeriado($data)) {
+            return [];
+        }
+
+        $intervalos = $this->intervalosBaseDoDia($data);
+
+        return $this->aplicarExcecoes($intervalos, $data);
+    }
+
     private function diaBloqueadoPorFeriado(CarbonImmutable $data): bool
     {
         return Holiday::query()
@@ -203,14 +227,20 @@ class AvailabilityService
         return $slots;
     }
 
-    private function paraMinutos(string $horaHms): int
+    /**
+     * Público (não é regra de negócio, só conversão de formato) para que a
+     * camada administrativa (Fase 4C) trabalhe com os mesmos "minutos desde
+     * a meia-noite" ao comparar consultas existentes contra
+     * intervalosAbertosDoDia(), sem reimplementar o parsing.
+     */
+    public function paraMinutos(string $horaHms): int
     {
         [$h, $m] = explode(':', $horaHms);
 
         return ((int) $h * 60) + (int) $m;
     }
 
-    private function paraHoraMinuto(int $minutos): string
+    public function paraHoraMinuto(int $minutos): string
     {
         return sprintf('%02d:%02d', intdiv($minutos, 60), $minutos % 60);
     }

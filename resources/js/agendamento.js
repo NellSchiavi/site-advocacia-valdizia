@@ -90,6 +90,7 @@ export default function agendamentoWizard(config) {
             nome_cliente: config.old.nome_cliente ?? '',
             email_cliente: config.old.email_cliente ?? '',
             telefone_cliente: config.old.telefone_cliente ?? '',
+            assunto: config.old.assunto ?? '',
             observacao: config.old.observacao ?? '',
         },
         consentimento: false,
@@ -264,6 +265,7 @@ export default function agendamentoWizard(config) {
                 this.form.nome_cliente.trim() !== '' &&
                 this.form.email_cliente.trim() !== '' &&
                 this.form.telefone_cliente.trim() !== '' &&
+                this.form.assunto.trim() !== '' &&
                 this.consentimento
             );
         },

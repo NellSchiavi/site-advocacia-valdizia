@@ -24,6 +24,9 @@ class HolidaySeeder extends Seeder
             ['nome' => 'Finados', 'mes' => 11, 'dia' => 2],
             ['nome' => 'Proclamação da República', 'mes' => 11, 'dia' => 15],
             ['nome' => 'Natal', 'mes' => 12, 'dia' => 25],
+            // Feriado municipal (Ferraz de Vasconcelos — SP), cadastrado
+            // explicitamente na Fase 4C.
+            ['nome' => 'Aniversário de Ferraz de Vasconcelos', 'mes' => 10, 'dia' => 14],
         ];
 
         foreach ($feriados as $feriado) {

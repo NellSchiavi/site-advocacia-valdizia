@@ -213,6 +213,7 @@
                             <div><dt class="text-texto/50">E-mail</dt><dd x-text="detalhe.email_cliente" class="text-texto"></dd></div>
                             <div><dt class="text-texto/50">Telefone</dt><dd x-text="detalhe.telefone_cliente" class="text-texto"></dd></div>
                             <div><dt class="text-texto/50">Área</dt><dd x-text="detalhe.area" class="text-texto"></dd></div>
+                            <div><dt class="text-texto/50">Assunto</dt><dd x-text="detalhe.assunto" class="text-texto"></dd></div>
                             <div>
                                 <dt class="text-texto/50">Data e horário</dt>
                                 <dd class="text-texto"><span x-text="detalhe.data"></span> · <span x-text="detalhe.hora_inicio"></span>–<span x-text="detalhe.hora_fim"></span></dd>

@@ -47,6 +47,7 @@ class AppointmentServiceTest extends TestCase
             'nome_cliente' => 'Cliente Teste',
             'email_cliente' => 'cliente@example.com',
             'telefone_cliente' => '11999999999',
+            'assunto' => 'Assunto de teste',
             'observacao' => null,
             'data' => $data->toDateString(),
             'hora_inicio' => $horaInicio,

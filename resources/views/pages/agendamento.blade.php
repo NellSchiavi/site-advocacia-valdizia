@@ -238,6 +238,17 @@
                         </div>
 
                         <div>
+                            <label for="assunto" class="text-sm font-medium text-texto">Assunto da consulta</label>
+                            <input type="text" id="assunto" name="assunto" x-model="form.assunto" maxlength="150"
+                                   aria-required="true" @if ($errors->has('assunto')) aria-invalid="true" aria-describedby="erro-assunto" @endif
+                                   placeholder="Ex.: Aposentadoria por idade, Pensão por morte, Divórcio…"
+                                   class="mt-1.5 w-full rounded-lg border border-bege bg-offwhite px-4 py-2.5 text-sm text-texto focus:border-dourado focus:ring-1 focus:ring-dourado focus:outline-none">
+                            @error('assunto')
+                                <p id="erro-assunto" class="mt-1.5 text-xs font-medium text-red-700" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
                             <label for="observacao" class="text-sm font-medium text-texto">Observação / motivo do contato <span class="font-normal text-texto/50">(opcional)</span></label>
                             <textarea id="observacao" name="observacao" x-model="form.observacao" rows="3"
                                       class="mt-1.5 w-full rounded-lg border border-bege bg-offwhite px-4 py-2.5 text-sm text-texto focus:border-dourado focus:ring-1 focus:ring-dourado focus:outline-none"></textarea>
@@ -294,6 +305,10 @@
                         <div>
                             <dt class="text-xs font-semibold tracking-wide text-texto/50 uppercase">Telefone</dt>
                             <dd class="mt-1 text-base text-texto" x-text="form.telefone_cliente"></dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-xs font-semibold tracking-wide text-texto/50 uppercase">Assunto</dt>
+                            <dd class="mt-1 text-base text-texto" x-text="form.assunto"></dd>
                         </div>
                     </dl>
 

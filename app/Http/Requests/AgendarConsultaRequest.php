@@ -21,6 +21,7 @@ class AgendarConsultaRequest extends FormRequest
             'nome_cliente' => ['required', 'string', 'max:150'],
             'email_cliente' => ['required', 'email', 'max:190'],
             'telefone_cliente' => ['required', 'string', 'max:30'],
+            'assunto' => ['required', 'string', 'max:150'],
             'observacao' => ['nullable', 'string', 'max:2000'],
             'data' => ['required', 'date_format:Y-m-d'],
             'hora_inicio' => ['required', 'date_format:H:i'],
@@ -40,6 +41,7 @@ class AgendarConsultaRequest extends FormRequest
             'email_cliente.required' => 'Informe um e-mail para contato.',
             'email_cliente.email' => 'Informe um e-mail válido.',
             'telefone_cliente.required' => 'Informe um telefone para contato.',
+            'assunto.required' => 'Informe o assunto da consulta.',
             'data.required' => 'Escolha uma data.',
             'hora_inicio.required' => 'Escolha um horário.',
             'consentimento.accepted' => 'É necessário concordar com a Política de Privacidade para agendar.',
@@ -56,6 +58,7 @@ class AgendarConsultaRequest extends FormRequest
             'nome_cliente' => 'nome',
             'email_cliente' => 'e-mail',
             'telefone_cliente' => 'telefone',
+            'assunto' => 'assunto',
             'data' => 'data',
             'hora_inicio' => 'horário',
         ];

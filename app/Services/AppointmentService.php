@@ -33,6 +33,7 @@ class AppointmentService
      *     nome_cliente: string,
      *     email_cliente: string,
      *     telefone_cliente: string,
+     *     assunto: string,
      *     observacao?: string|null,
      *     data: string,
      *     hora_inicio: string,
@@ -47,6 +48,7 @@ class AppointmentService
             'nome_cliente' => ['required', 'string', 'max:150'],
             'email_cliente' => ['required', 'email', 'max:190'],
             'telefone_cliente' => ['required', 'string', 'max:30'],
+            'assunto' => ['required', 'string', 'max:150'],
             'observacao' => ['nullable', 'string'],
             'data' => ['required', 'date_format:Y-m-d'],
             'hora_inicio' => ['required', 'date_format:H:i'],
@@ -99,6 +101,7 @@ class AppointmentService
                     'nome_cliente' => $validado['nome_cliente'],
                     'email_cliente' => $validado['email_cliente'],
                     'telefone_cliente' => $validado['telefone_cliente'],
+                    'assunto' => $validado['assunto'],
                     'observacao' => $validado['observacao'] ?? null,
                     'data' => $data->toDateString(),
                     'hora_inicio' => $horaInicio,
@@ -200,8 +203,13 @@ class AppointmentService
      * Cria (se necessário) e trava a linha de lock da data dentro da transação
      * atual, serializando qualquer outra tentativa concorrente de agendamento
      * para o mesmo dia até este processo commitar ou reverter.
+     *
+     * Público (Fase 4C): o AdminAvailabilityService também precisa adquirir
+     * este mesmo lock por data antes de checar/cancelar consultas afetadas
+     * por uma alteração administrativa — reaproveita o mecanismo existente
+     * em vez de criar um paralelo.
      */
-    private function adquirirLockDoDia(CarbonImmutable $data): void
+    public function adquirirLockDoDia(CarbonImmutable $data): void
     {
         DB::table('agenda_locks')->insertOrIgnore([
             'data' => $data->toDateString(),

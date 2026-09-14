@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminAgendaController;
 use App\Http\Controllers\Admin\AdminAuthController;
+use App\Http\Controllers\Admin\AdminAvailabilityController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\AppointmentController;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +59,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/{appointment}/cancelar', [AdminAgendaController::class, 'cancelar'])->name('agenda.cancelar');
                 Route::post('/{appointment}/concluir', [AdminAgendaController::class, 'concluir'])->name('agenda.concluir');
                 Route::post('/{appointment}/nao-compareceu', [AdminAgendaController::class, 'naoCompareceu'])->name('agenda.nao-compareceu');
+            });
+
+            // Disponibilidade administrativa (Fase 4C): horários semanais,
+            // exceções, feriados e bloqueios — tudo converge para o mesmo
+            // AvailabilityService via AdminAvailabilityService.
+            Route::prefix('disponibilidade')->name('disponibilidade.')->group(function () {
+                Route::get('/', [AdminAvailabilityController::class, 'index'])->name('index');
+                Route::post('/horarios/{diaDaSemana}', [AdminAvailabilityController::class, 'atualizarRegra'])
+                    ->whereNumber('diaDaSemana')
+                    ->name('horarios.atualizar');
+                Route::post('/excecoes', [AdminAvailabilityController::class, 'salvarExcecao'])->name('excecoes.salvar');
+                Route::delete('/excecoes/{excecao}', [AdminAvailabilityController::class, 'removerExcecao'])->name('excecoes.remover');
+                Route::post('/feriados', [AdminAvailabilityController::class, 'salvarFeriado'])->name('feriados.salvar');
+                Route::delete('/feriados/{feriado}', [AdminAvailabilityController::class, 'removerFeriado'])->name('feriados.remover');
             });
         });
     });

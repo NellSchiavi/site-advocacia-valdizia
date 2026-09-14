@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'nome_cliente',
     'email_cliente',
     'telefone_cliente',
+    'assunto',
     'observacao',
     'data',
     'hora_inicio',

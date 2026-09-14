@@ -3,7 +3,7 @@
     $itensSidebar = [
         ['label' => 'Dashboard', 'icone' => 'chart-bar', 'rota' => 'admin.dashboard', 'disponivel' => true],
         ['label' => 'Agenda', 'icone' => 'calendar', 'rota' => 'admin.agenda', 'disponivel' => true],
-        ['label' => 'Disponibilidade', 'icone' => 'clock', 'disponivel' => false],
+        ['label' => 'Disponibilidade', 'icone' => 'clock', 'rota' => 'admin.disponibilidade.index', 'disponivel' => true],
         ['label' => 'Feriados', 'icone' => 'flag', 'disponivel' => false],
         ['label' => 'Configurações', 'icone' => 'settings', 'disponivel' => false],
     ];

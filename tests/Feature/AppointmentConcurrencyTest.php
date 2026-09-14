@@ -101,6 +101,7 @@ class AppointmentConcurrencyTest extends TestCase
             'nome_cliente' => 'Cliente Teste',
             'email_cliente' => 'cliente@example.com',
             'telefone_cliente' => '11999999999',
+            'assunto' => 'Assunto de teste',
             'observacao' => null,
             'data' => $segunda->toDateString(),
             'hora_inicio' => '10:00',
