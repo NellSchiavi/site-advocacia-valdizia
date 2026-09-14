@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAgendaController;
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminAvailabilityController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminPasswordResetController;
 use App\Http\Controllers\AppointmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/login', [AdminAuthController::class, 'store'])
             ->middleware('throttle:10,1')
             ->name('login.store');
+
+        // Recuperação de senha (Fase 4F) — só faz sentido para quem ainda
+        // não está autenticado, mesmo escopo "guest" do login.
+        Route::get('/forgot-password', [AdminPasswordResetController::class, 'create'])
+            ->name('password.request');
+        Route::post('/forgot-password', [AdminPasswordResetController::class, 'store'])
+            ->middleware('throttle:5,1')
+            ->name('password.email');
+        Route::get('/reset-password/{token}', [AdminPasswordResetController::class, 'edit'])
+            ->name('password.reset');
+        Route::post('/reset-password', [AdminPasswordResetController::class, 'update'])
+            ->middleware('throttle:5,1')
+            ->name('password.update');
     });
 
     Route::middleware('auth')->group(function () {

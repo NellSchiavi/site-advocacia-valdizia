@@ -324,6 +324,64 @@ class AdminAgendaTest extends TestCase
     }
 
     // ==========================================================
+    // Fase 4F — XSS e SQL injection (regressão)
+    // ==========================================================
+
+    public function test_payload_html_no_nome_do_cliente_nao_e_interpretado_como_html_na_agenda(): void
+    {
+        $payload = '<script>alert(1)</script>';
+        $consulta = $this->criarConsulta(['nome_cliente' => $payload]);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', ['data' => $consulta->data->toDateString()]));
+
+        // Blade escapa por padrão ({{ }}): a versão ESCAPADA deve aparecer...
+        $resposta->assertSee($payload);
+        // ...e a tag <script> bruta, capaz de executar, nunca deve aparecer.
+        $resposta->assertDontSee($payload, false);
+    }
+
+    public function test_payload_html_no_detalhe_da_consulta_e_devolvido_como_json_seguro(): void
+    {
+        $payload = '<script>alert(1)</script>';
+        $consulta = $this->criarConsulta([
+            'nome_cliente' => $payload,
+            'assunto' => $payload,
+            'observacao' => $payload,
+        ]);
+
+        $resposta = $this->actingAs($this->admin)->getJson(route('admin.agenda.show', $consulta));
+
+        // response()->json() sempre serializa como string de dados, nunca
+        // como HTML executável — o valor volta intacto (não é HTML nesta
+        // camada), e quem renderiza no admin usa x-text (Alpine), que define
+        // textContent, nunca innerHTML (ver agenda/index.blade.php).
+        $resposta->assertJson(['nome_cliente' => $payload, 'assunto' => $payload, 'observacao' => $payload]);
+        $resposta->assertHeader('Content-Type', 'application/json');
+    }
+
+    public function test_busca_com_caracteres_especiais_de_sql_e_tratada_como_texto_literal(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Cliente Normal']);
+
+        // Sem dígitos de propósito: um payload com "1" seria capturado pela
+        // normalização de telefone (item 6 da Fase 4D) e combinaria com
+        // qualquer telefone que contenha "11" — falso positivo já
+        // encontrado ao escrever este teste, não uma falha de segurança.
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => "' OR 'x'='x",
+        ]));
+
+        // Nenhum erro de SQL (a query builder/bindings tratam a busca como
+        // texto literal) e nenhum resultado — a string não corresponde a
+        // nenhum nome/e-mail/telefone real.
+        $resposta->assertOk();
+        $resposta->assertDontSee('Cliente Normal');
+        $resposta->assertSee('Nenhuma consulta encontrada para essa busca.');
+    }
+
+    // ==========================================================
     // Fase 4E — e-mail de cancelamento manual
     // ==========================================================
 
@@ -350,6 +408,17 @@ class AdminAgendaTest extends TestCase
             'id' => $consulta->id,
             'status' => Appointment::STATUS_CANCELLED,
         ]);
+    }
+
+    public function test_payload_html_no_nome_do_cliente_nao_e_interpretado_no_email_de_cancelamento(): void
+    {
+        $payload = '<script>alert(1)</script>';
+        $consulta = $this->criarConsulta(['nome_cliente' => $payload])->load('areaAtuacao');
+
+        $html = (new \App\Mail\ConsultaCanceladaMail($consulta))->render();
+
+        $this->assertStringContainsString(e($payload), $html);
+        $this->assertStringNotContainsString($payload, $html);
     }
 
     public function test_falha_no_envio_do_email_nao_desfaz_cancelamento_manual(): void

@@ -148,6 +148,39 @@ class AdminAuthTest extends TestCase
         $this->assertFalse(Gate::forUser($usuarioSemPapelAdmin)->allows('access-admin-panel'));
     }
 
+    // ==========================================================
+    // Fase 4F — session fixation
+    // ==========================================================
+
+    public function test_login_bem_sucedido_regenera_o_id_da_sessao(): void
+    {
+        $admin = $this->criarAdmin();
+
+        // Inicia a sessão como visitante antes de autenticar.
+        $this->get(route('admin.login'));
+        $idAntes = session()->getId();
+
+        $this->post(route('admin.login.store'), [
+            'email' => $admin->email,
+            'password' => 'SenhaValida123!',
+        ]);
+
+        $this->assertNotSame($idAntes, session()->getId());
+    }
+
+    public function test_logout_invalida_a_sessao(): void
+    {
+        $admin = $this->criarAdmin();
+
+        $this->actingAs($admin)->get(route('admin.dashboard'));
+        $idAntesDoLogout = session()->getId();
+
+        $this->post(route('admin.logout'));
+
+        $this->assertNotSame($idAntesDoLogout, session()->getId());
+        $this->assertGuest();
+    }
+
     public function test_rate_limit_do_login_bloqueia_apos_exceder_tentativas(): void
     {
         $admin = $this->criarAdmin();

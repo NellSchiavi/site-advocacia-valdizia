@@ -40,7 +40,12 @@
                 </div>
 
                 <div class="mt-5">
-                    <label for="password" class="text-sm font-medium text-texto">Senha</label>
+                    <div class="flex items-center justify-between">
+                        <label for="password" class="text-sm font-medium text-texto">Senha</label>
+                        <a href="{{ route('admin.password.request') }}" class="text-xs font-medium text-dourado-texto underline underline-offset-2">
+                            Esqueceu a senha?
+                        </a>
+                    </div>
                     <input
                         type="password" id="password" name="password"
                         autocomplete="current-password" required

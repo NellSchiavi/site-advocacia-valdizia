@@ -196,6 +196,23 @@ class AgendamentoPublicoTest extends TestCase
         $this->assertStringContainsString('09:00', $html);
     }
 
+    public function test_payload_html_no_nome_do_cliente_nao_e_interpretado_no_email_de_confirmacao(): void
+    {
+        $payload = '<script>alert(1)</script>';
+        $segunda = $this->proximaSegundaFeira();
+
+        $this->post(route('agendamento.store'), array_merge(
+            $this->dadosValidos($segunda, '09:00'),
+            ['nome_cliente' => $payload, 'assunto' => $payload]
+        ));
+        $appointment = Appointment::query()->firstOrFail()->load('areaAtuacao');
+
+        $html = (new ConsultaConfirmadaMail($appointment))->render();
+
+        $this->assertStringContainsString(e($payload), $html);
+        $this->assertStringNotContainsString($payload, $html);
+    }
+
     public function test_falha_no_envio_do_email_de_confirmacao_nao_desfaz_o_agendamento(): void
     {
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('Falha simulada de envio.'));

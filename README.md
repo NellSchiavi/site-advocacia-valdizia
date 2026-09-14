@@ -4,7 +4,7 @@ Site institucional com sistema de agendamento de consultas e painel administrati
 
 > Planejamento técnico completo (arquitetura, schema, decisões e riscos) em [`PLANO-TECNICO.md`](./PLANO-TECNICO.md). Este README cobre apenas o dia a dia de desenvolvimento.
 
-**Status atual**: fluxo público de agendamento e painel administrativo completos — autenticação, agenda (consultas, cancelamento/conclusão/não comparecimento, busca por nome/e-mail/telefone), configuração de disponibilidade (horários semanais, exceções, feriados, bloqueios) e e-mails transacionais (confirmação de agendamento, cancelamento manual e cancelamento por alteração de disponibilidade). **Ainda não há provedor de e-mail real configurado para produção nem ambiente de produção/Locaweb** — ver "O que ainda não foi implementado" abaixo.
+**Status atual**: fluxo público de agendamento e painel administrativo completos — autenticação (com recuperação de senha), agenda (consultas, cancelamento/conclusão/não comparecimento, busca por nome/e-mail/telefone), configuração de disponibilidade (horários semanais, exceções, feriados, bloqueios), e-mails transacionais (confirmação de agendamento, cancelamento manual e cancelamento por alteração de disponibilidade) e headers de segurança/CSP. **Ainda não há provedor de e-mail real configurado para produção nem ambiente de produção/Locaweb** — ver "O que ainda não foi implementado" abaixo.
 
 ## Stack
 
@@ -29,7 +29,8 @@ Site institucional com sistema de agendamento de consultas e painel administrati
 - **Política de Privacidade**: página em `/politica-de-privacidade`, conteúdo placeholder — precisa de revisão jurídica antes de produção.
 
 ### Painel administrativo (`/admin`)
-- **Login** (`/admin/login`) com e-mail/senha, hash nativo do Laravel, rate limiting por e-mail+IP (5 tentativas) além do `throttle` da rota, mensagem genérica de erro ("Credenciais inválidas.") que nunca revela se o e-mail existe.
+- **Login** (`/admin/login`) com e-mail/senha, hash nativo do Laravel, rate limiting por e-mail+IP (5 tentativas) além do `throttle` da rota, mensagem genérica de erro ("Credenciais inválidas.") que nunca revela se o e-mail existe. Sessão sempre regenerada após login bem-sucedido (previne session fixation); logout invalida a sessão e regenera o token CSRF.
+- **Recuperação de senha** (`/admin/forgot-password` → `/admin/reset-password/{token}`): usa o `PasswordBroker` nativo do Laravel (token com hash, expiração em 60 min, uso único — nada de criptografia própria). A resposta pública é **sempre a mesma mensagem genérica**, exista ou não conta associada ao e-mail informado, para não permitir enumeração de usuários. E-mail enviado via `ResetPasswordMail`, com a mesma identidade visual dos demais e-mails do projeto.
 - **Autorização**: todas as rotas de `/admin/*` (exceto login) exigem `auth` + `Gate` `access-admin-panel` (baseado em `users.role`) — nunca confia em dado vindo do frontend para decidir permissão.
 - **Dashboard**: números reais do banco (consultas de hoje, confirmadas, futuras, áreas ativas).
 - **Agenda** (`/admin/agenda`): visão diária/semanal, filtros por data/status/área, **busca por nome/e-mail/telefone** (condição adicional aos filtros, executada no banco), detalhe de cada consulta (nome, e-mail, telefone, assunto, observação, status, histórico) buscado sob demanda — nunca pré-carregado na listagem (minimização de dados pessoais). Ações **cancelar**, **concluir** e **marcar não comparecimento**, cada uma como uma rota explícita (o backend nunca aceita um campo `status` arbitrário vindo do cliente). `concluir`/`não comparecimento` só são permitidos depois que a consulta já terminou (`data + hora_fim <= agora`) — evita liberar por engano um horário futuro para um novo cliente. **Cancelar** envia ao cliente o mesmo e-mail de cancelamento (`ConsultaCanceladaMail`) usado pelo cancelamento por disponibilidade abaixo — um único template para os dois caminhos.
@@ -51,13 +52,38 @@ Três eventos disparam e-mail ao cliente, sempre pela mesma arquitetura: `Appoin
 
 Cada `Mailable` tem versão HTML e texto simples (`resources/views/emails/`), sem JS/CSS externo, seguindo a identidade visual do site (verde profundo, off-white, bege, dourado). O e-mail de cancelamento usa texto neutro ("Sua consulta foi cancelada") em vez de atribuir um motivo específico, já que é reaproveitado pelos dois caminhos de cancelamento.
 
+## Segurança (Fase 4F)
+
+- **Headers de segurança + CSP** (`App\Http\Middleware\SecurityHeaders`, aplicado a todo o grupo `web` — inclusive respostas geradas a partir de uma exceção, como o redirect de guest/auth, via `Exceptions::respond()` em `bootstrap/app.php`): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` restritiva, e um `Content-Security-Policy` com `default-src 'self'` (todo o front-end é self-hosted via Vite — sem CDN, sem Google Fonts externo).
+  - **Limitação conhecida e documentada**: o projeto usa a build padrão do Alpine.js (não a `@alpinejs/csp`), que exigiu duas concessões pontuais — confirmadas necessárias via Playwright real, não só leitura de código: `script-src` inclui `'unsafe-eval'` (Alpine avalia expressões de `x-data`/`@click`/etc. via `new Function()`), e `style-src` inclui `'unsafe-inline'` (`x-show`/`x-transition` — usados até no header público, presente em toda página — escondem/mostram elementos escrevendo direto em `element.style.*` via JS, o que a CSP trata como "inline style" mesmo sem nenhum `style=""` no HTML-fonte). Migrar para a build CSP do Alpine exigiria reescrever `x-data`/`x-show`/`@click` em várias views (refatoração grande, fora do escopo desta fase).
+- **Session**: `HttpOnly` e `SameSite=Lax` (padrão do Laravel), regeneração de sessão após login, invalidação após logout — nada alterado, já existia desde a Fase 4A. `SESSION_SECURE_COOKIE` continua orientado por ambiente (ver `.env.example`).
+- **Recuperação de senha**: ver seção do painel administrativo acima.
+- **CSRF**: auditado — todo formulário POST/PUT/PATCH/DELETE administrativo tem `@csrf`; `VerifyCsrfToken`/`ValidateCsrfToken` nunca foi desabilitado.
+- **XSS**: nenhum `{!! !!}` com dado de cliente em nenhuma view/e-mail — tudo passa por `{{ }}` (escape padrão do Blade) ou por `x-text` do Alpine (que usa `textContent`, nunca `innerHTML`). Testes de regressão cobrem payload `<script>` em nome/assunto/observação.
+- **SQL injection**: 100% Eloquent/query builder com bindings, inclusive a busca da Fase 4D (`LIKE`/`whereRaw` sempre parametrizados, nunca concatenação).
+- **Open redirect**: nenhum parâmetro `next`/`redirect` controlado pelo cliente existe na aplicação; `redirect()->intended()` do login usa a URL interna que o próprio Laravel capturou antes do redirect para o login, nunca um valor arbitrário do usuário.
+
 ## O que ainda não foi implementado
 
 - Provedor de e-mail real em produção — a arquitetura de mail já existe e funciona (capturada pelo Mailpit em desenvolvimento); falta configurar um provedor real (Resend ou SMTP do domínio) nas variáveis de ambiente de produção.
-- Lembrete automático de consulta, remarcação e cancelamento pelo próprio cliente (fora do escopo da Fase 4E).
+- Lembrete automático de consulta, remarcação e cancelamento pelo próprio cliente (fora do escopo atual).
 - Configuração de agenda pelo painel: duração da consulta e intervalo entre consultas continuam centralizados em `configuracoes_globais` (55 min + 5 min, não editável pela Dra. nesta fase).
 - Múltiplos perfis administrativos (hoje só existe o papel `admin`).
-- Configuração de ambiente de produção/Locaweb (hospedagem, domínio, certificado, variáveis de produção).
+- Migração do Alpine.js para a build `@alpinejs/csp` (permitiria remover `'unsafe-eval'` da CSP) — refatoração grande, avaliar conforme necessidade real.
+- Configuração de ambiente de produção/Locaweb (hospedagem, domínio, certificado, variáveis de produção) — ver checklist abaixo.
+
+## Checklist de produção (preparar na Fase 6)
+
+Nada disto é configurado nesta fase — só documentado para quando a Locaweb for configurada:
+
+- `APP_ENV=production`, `APP_DEBUG=false` (nunca deixar `true` em produção — expõe stack trace/SQL/caminhos internos).
+- `APP_URL` com o domínio real, sempre `https://`.
+- `SESSION_SECURE_COOKIE=true` (só funciona com HTTPS de fato configurado).
+- HTTPS obrigatório (certificado válido no domínio real).
+- `MAIL_*` apontando para um provedor real (Resend ou SMTP do domínio) — nunca a senha pessoal da cliente.
+- `DB_*` com host/credenciais reais do banco de produção.
+- Gerar um `.env` real no servidor (nunca commitar) com `APP_KEY` própria de produção.
+- Permissões de escrita em `storage/` e `bootstrap/cache/`.
 
 ## Requisitos
 
@@ -160,15 +186,20 @@ app/
     TransicaoDeStatusInvalidaException.php        # ação de status inválida pro estado/tempo atual da consulta
     AlteracaoDeAgendaAfetaConsultasException.php  # alteração administrativa afeta consultas — exige confirmação
   Http/
+    Middleware/SecurityHeaders.php                  # headers de segurança + CSP (grupo "web")
     Controllers/AppointmentController.php          # fluxo público de agendamento
     Controllers/Admin/AdminAuthController.php       # login/logout do painel
+    Controllers/Admin/AdminPasswordResetController.php # recuperação de senha (PasswordBroker nativo)
     Controllers/Admin/AdminDashboardController.php  # dashboard
     Controllers/Admin/AdminAgendaController.php     # agenda administrativa (consultas)
     Controllers/Admin/AdminAvailabilityController.php # disponibilidade administrativa (horários/exceções/feriados/bloqueios)
     Requests/AgendarConsultaRequest.php             # validação do formulário público (inclui área ativa e assunto)
     Requests/Admin/AdminLoginRequest.php            # autenticação + rate limit do login admin
+    Requests/Admin/AdminForgotPasswordRequest.php   # validação do e-mail na solicitação de recuperação
+    Requests/Admin/AdminResetPasswordRequest.php    # validação da nova senha
   Mail/ConsultaConfirmadaMail.php                   # e-mail de confirmação de novo agendamento
   Mail/ConsultaCanceladaMail.php                    # e-mail de cancelamento (manual ou por alteração administrativa)
+  Mail/ResetPasswordMail.php                        # e-mail de redefinição de senha
   Models/
     User, AreaAtuacao, AvailabilityRule, AvailabilityException,
     Holiday, ConfiguracaoGlobal, Appointment, AgendaLock, AdminLog
@@ -184,8 +215,8 @@ docker/
   8.3/           # build context do container da aplicação (baseado no runtime oficial do Sail)
 resources/
   views/pages/       # homepage, agendamento (wizard), confirmação, política de privacidade
-  views/admin/        # login, dashboard, agenda e disponibilidade do painel
-  views/emails/        # e-mails de confirmação e cancelamento (HTML + texto simples)
+  views/admin/        # login, recuperação de senha, dashboard, agenda e disponibilidade do painel
+  views/emails/        # e-mails de confirmação, cancelamento e redefinição de senha (HTML + texto simples)
   js/agendamento.js    # wizard de agendamento público (Alpine.js) + tratamento de falha de API
   js/agenda-admin.js   # modal de detalhe/ações da agenda administrativa
 tests/
@@ -197,18 +228,22 @@ tests/
   Feature/AdminAuthTest.php
   Feature/AdminAgendaTest.php
   Feature/AdminAvailabilityTest.php
+  Feature/AdminPasswordResetTest.php
+  Feature/SecurityHeadersTest.php
 PLANO-TECNICO.md   # arquitetura, decisões, riscos e especificação completa do projeto
 ```
 
 ## Testes automatizados
 
-A suíte tem **140 testes** (362 assertions). Cobre, entre outras coisas:
+A suíte tem **164 testes** (437 assertions). Cobre, entre outras coisas:
 
 - toda a resolução de disponibilidade (expediente, exceções, feriados, bloqueios, sobreposição, duração/intervalo configuráveis);
 - concorrência: lock transacional por data impede dupla reserva (com processos concorrentes reais via `pcntl_fork` quando disponível);
-- fluxo público completo (validação, criação, confirmação assinada e temporária, rate limit, e-mail de confirmação com `Mail::fake()`, falha de envio não desfaz o agendamento);
-- autenticação e autorização administrativa (Gate, rate limit de login, mensagens genéricas);
-- agenda administrativa (listagem, filtros, busca por nome/e-mail/telefone, detalhe, cancelar/concluir/não comparecimento, regra temporal — só permitido depois que a consulta termina; cancelamento manual dispara e-mail, falha de envio não desfaz o cancelamento);
+- fluxo público completo (validação, criação, confirmação assinada e temporária, rate limit, e-mail de confirmação com `Mail::fake()`, falha de envio não desfaz o agendamento, payload `<script>` em nome/assunto sempre escapado);
+- autenticação e autorização administrativa (Gate, rate limit de login, mensagens genéricas, sessão regenerada no login, sessão invalidada no logout);
+- recuperação de senha (solicitação com e-mail existente/inexistente sempre com a mesma mensagem, envio do e-mail, token válido/expirado/inválido/não reutilizável, confirmação de senha, login com a nova senha, rate limit);
+- headers de segurança/CSP presentes tanto em respostas normais quanto em respostas geradas por exceção (redirect de guest);
+- agenda administrativa (listagem, filtros, busca por nome/e-mail/telefone, detalhe, cancelar/concluir/não comparecimento, regra temporal — só permitido depois que a consulta termina; cancelamento manual dispara e-mail, falha de envio não desfaz o cancelamento; payload `<script>` sempre escapado; busca com caracteres especiais de SQL tratada como texto literal);
 - disponibilidade administrativa: alteração de horário/exceção/feriado/bloqueio sem consultas afetadas aplica direto; com consultas afetadas exige confirmação explícita e não aplica nada até confirmar (e não dispara e-mail); confirmação cancela as consultas, envia e-mail individual por consulta afetada (`Mail::fake()`), grava `AdminLog` e preserva o registro histórico (nunca apaga); falha de envio de uma notificação não impede o envio das demais nem desfaz nenhum cancelamento.
 
 Rodar tudo:

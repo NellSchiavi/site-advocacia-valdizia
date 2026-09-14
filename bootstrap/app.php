@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,9 +19,19 @@ return Application::configure(basePath: dirname(__DIR__))
         // no futuro, isto precisa passar a variar por rota/guard.
         $middleware->redirectGuestsTo('/admin/login');
         $middleware->redirectUsersTo('/admin');
+
+        // Fase 4F: headers de segurança em toda resposta do grupo "web"
+        // (site público + painel) — ver SecurityHeaders para o raciocínio
+        // completo de cada header/diretiva de CSP.
+        $middleware->web(append: [SecurityHeaders::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Fase 4F: o Response de uma exceção (guest/auth redirect, 404, 419,
+        // 500...) é montado fora do pipeline de middleware — sem isto, essas
+        // respostas ficariam sem os headers de segurança (ver SecurityHeaders).
+        $exceptions->respond(fn ($response) => app(SecurityHeaders::class)->aplicar($response));
     })->create();
