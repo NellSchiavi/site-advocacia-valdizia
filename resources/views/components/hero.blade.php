@@ -47,7 +47,19 @@
         ></div>
     </div>
 
-    <div class="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-stretch lg:grid-cols-12">
+    {{--
+        A partir de 2xl (>=1536px) o container deixa de ficar travado em
+        max-w-7xl (1280px fixo) e passa a ser 90% do viewport. Motivo: a
+        camada de foto/gradiente acima é ancorada em right-0 da <section>
+        (sem max-width) e cresce com a tela inteira; um container preso a
+        1280px faz a coluna da citação "descolar" da foto em monitores
+        grandes (a foto cresce, o container não). Usar % em vez de um
+        max-width maior e fixo mantém a proporção citação/foto consistente
+        em qualquer largura grande (1536px, 1920px, 2560px, ...), não só em
+        um valor específico. Abaixo de 2xl nada muda — max-w-7xl continua
+        exatamente como antes (1440px, tablet e mobile preservados).
+    --}}
+    <div class="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-stretch lg:grid-cols-12 2xl:w-[90%] 2xl:max-w-none">
         {{-- Coluna de texto --}}
         <div class="flex flex-col justify-center px-6 py-16 sm:py-20 lg:col-span-6 lg:px-10 lg:py-24 xl:col-span-7">
             <p class="eyebrow text-dourado">Direito para a sua tranquilidade</p>
@@ -79,7 +91,11 @@
              espaço acima dela é transparente, revelando a foto+overlay
              (camadas 1 e 2) por trás. --}}
         <div class="relative flex flex-col justify-end lg:col-span-6 xl:col-span-5">
-            <blockquote class="border-t border-white/10 bg-verde-escuro/60 px-6 py-8 lg:px-10">
+            {{-- Em 2xl a coluna fica mais larga (container fluido acima); sem
+                 um teto a citação esticaria em excesso em monitores muito
+                 grandes, então ela é limitada e alinhada à direita da
+                 coluna (contra a borda direita, sobre a foto). --}}
+            <blockquote class="border-t border-white/10 bg-verde-escuro/60 px-6 py-8 lg:px-10 2xl:max-w-xl 2xl:ml-auto">
                 <p class="font-serif text-lg leading-snug text-white/90 italic">
                     &ldquo;Direito é instrumento de justiça e de novas oportunidades.&rdquo;
                 </p>
