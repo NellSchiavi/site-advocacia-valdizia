@@ -92,6 +92,28 @@ class AdminAgendaTest extends TestCase
         $resposta->assertSee('Agenda');
     }
 
+    /**
+     * Auditoria de overflow (pós Fase 5): o card do modal de detalhe
+     * precisa de altura máxima + rolagem interna própria, senão conteúdo
+     * longo (observação extensa, ações + confirmação abertas) pode
+     * ultrapassar a viewport sem nenhuma forma de alcançar o restante —
+     * regressão real encontrada e corrigida nesta auditoria. PHPUnit não
+     * renderiza CSS/JS, então este teste só garante que as classes
+     * responsáveis pelo comportamento não sejam removidas por engano; o
+     * comportamento visual em si foi validado via Playwright.
+     */
+    public function test_modal_de_detalhe_tem_altura_maxima_e_rolagem_interna(): void
+    {
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda'));
+
+        $resposta->assertOk();
+        $resposta->assertSee('max-h-[calc(100vh-2rem)]', false);
+        $resposta->assertSee('overflow-y-auto', false);
+        // Cabeçalho (título + botão Fechar) precisa continuar fixo durante
+        // a rolagem interna, para que o Fechar nunca dependa de rolar de volta.
+        $resposta->assertSee('sticky top-0', false);
+    }
+
     public function test_agenda_mostra_consultas_reais(): void
     {
         $consulta = $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);

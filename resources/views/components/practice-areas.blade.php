@@ -1,5 +1,8 @@
 @php
     // Ordem canônica usada em todo o projeto (Fase 0 e Fase 2): Previdenciário, Cível, Família.
+    // Nomes apresentados ao visitante (Fase 5): "Direito Cível" na
+    // comunicação pública — o nome interno "Direito Civil" (banco/painel
+    // administrativo) permanece inalterado, ver AreaAtuacao::nomePublico().
     $areas = [
         [
             'icon' => 'user',
@@ -8,7 +11,7 @@
         ],
         [
             'icon' => 'document-text',
-            'titulo' => 'Direito Civil',
+            'titulo' => 'Direito Cível',
             'descricao' => 'Contratos, indenizações, responsabilidade civil e direitos do consumidor.',
         ],
         [
@@ -25,7 +28,7 @@
             <div class="lg:col-span-7">
                 <p class="eyebrow text-dourado-texto">Áreas de Atuação</p>
                 <h2 class="mt-4 font-serif text-3xl leading-tight font-semibold text-texto sm:text-4xl">
-                    Especialista em Direito Previdenciário, Cível e de Família
+                    Atuação em Direito Previdenciário, Cível e de Família
                 </h2>
             </div>
             <div class="flex flex-col gap-4 lg:col-span-5 lg:items-end lg:text-right">

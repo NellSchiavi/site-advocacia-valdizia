@@ -19,7 +19,7 @@
             <dl class="mt-8 grid grid-cols-1 gap-4 rounded-2xl border border-bege bg-white p-6 text-left sm:grid-cols-3 sm:p-8">
                 <div>
                     <dt class="text-xs font-semibold tracking-wide text-texto/50 uppercase">Área</dt>
-                    <dd class="mt-1 font-serif text-base text-texto">{{ $appointment->areaAtuacao->nome }}</dd>
+                    <dd class="mt-1 font-serif text-base text-texto">{{ $appointment->areaAtuacao->nome_publico }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs font-semibold tracking-wide text-texto/50 uppercase">Data</dt>
@@ -36,8 +36,8 @@
             </dl>
 
             <p class="mt-8 text-sm text-texto/60">
-                Você receberá a confirmação por e-mail assim que a integração de e-mail
-                estiver ativa. Se precisar, também pode falar diretamente pelo WhatsApp.
+                Você receberá a confirmação também por e-mail. Se precisar, também pode
+                falar diretamente pelo WhatsApp.
             </p>
 
             <div class="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

@@ -188,7 +188,11 @@
             </div>
         @endif
 
-        {{-- Modal de detalhe da consulta (item 4) --}}
+        {{-- Modal de detalhe da consulta (item 4). Auditoria de overflow:
+             a viewport pode ser mais baixa que o conteúdo (observação longa,
+             ações + confirmação abertas ao mesmo tempo) — o card interno
+             precisa de altura máxima e rolagem própria, nunca ultrapassando
+             a viewport sem forma de alcançar o restante do conteúdo. --}}
         <div
             x-show="modalAberto"
             x-cloak
@@ -197,14 +201,19 @@
             aria-modal="true"
             aria-label="Detalhe da consulta"
             @keydown.escape.window="fecharModal()"
+            @keydown.tab="aprisionarFoco($event)"
         >
-            <div @click.outside="fecharModal()" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
-                <div class="flex items-center justify-between">
+            <div @click.outside="fecharModal()" class="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-lg">
+                {{-- Cabeçalho fixo durante a rolagem interna — o botão Fechar
+                     precisa continuar acessível sem precisar rolar de volta
+                     ao topo do card (auditoria de overflow). --}}
+                <div class="sticky top-0 z-10 flex items-center justify-between bg-white px-6 pt-6 pb-4">
                     <h2 class="font-serif text-lg font-semibold text-texto">Detalhe da consulta</h2>
-                    <button type="button" @click="fecharModal()" class="rounded-full p-1.5 text-texto/60 hover:bg-bege/40" aria-label="Fechar">
+                    <button type="button" x-ref="botaoFechar" @click="fecharModal()" class="rounded-full p-1.5 text-texto/60 hover:bg-bege/40" aria-label="Fechar">
                         <x-ui.icon name="close" class="h-4 w-4" />
                     </button>
                 </div>
+                <div class="px-6 pb-6">
 
                 {{-- Carregando --}}
                 <p x-show="carregando" x-cloak class="mt-6 text-center text-sm text-texto/60">Carregando…</p>
@@ -314,6 +323,7 @@
                         </div>
                     </div>
                 </template>
+                </div>
             </div>
         </div>
     </div>

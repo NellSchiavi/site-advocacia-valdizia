@@ -29,7 +29,7 @@
                             </p>
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px; font-size:15px; line-height:1.6;">
-                                <tr><td style="color:#6B6155; padding-right:8px;">Área:</td><td>{{ $appointment->areaAtuacao->nome }}</td></tr>
+                                <tr><td style="color:#6B6155; padding-right:8px;">Área:</td><td>{{ $appointment->areaAtuacao->nome_publico }}</td></tr>
                                 <tr><td style="color:#6B6155; padding-right:8px;">Assunto:</td><td>{{ $appointment->assunto }}</td></tr>
                                 <tr><td style="color:#6B6155; padding-right:8px;">Data:</td><td>{{ $dataFormatada }}</td></tr>
                                 <tr><td style="color:#6B6155; padding-right:8px;">Horário:</td><td>{{ substr($appointment->hora_inicio, 0, 5) }} às {{ substr($appointment->hora_fim, 0, 5) }}</td></tr>

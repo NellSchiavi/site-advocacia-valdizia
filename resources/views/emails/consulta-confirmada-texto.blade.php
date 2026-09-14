@@ -7,7 +7,7 @@ Olá, {{ $appointment->nome_cliente }}.
 
 Sua consulta foi confirmada. Seguem os detalhes:
 
-Área: {{ $appointment->areaAtuacao->nome }}
+Área: {{ $appointment->areaAtuacao->nome_publico }}
 Assunto: {{ $appointment->assunto }}
 Data: {{ $dataFormatada }}
 Horário: {{ substr($appointment->hora_inicio, 0, 5) }} às {{ substr($appointment->hora_fim, 0, 5) }}

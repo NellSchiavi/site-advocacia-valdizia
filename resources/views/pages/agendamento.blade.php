@@ -6,7 +6,7 @@
 <x-layout title="Agende sua consulta — Dra. Valdizia Melo">
     <section
         x-data="agendamentoWizard({
-            areas: {{ Js::from($areas->map(fn ($a) => ['id' => $a->id, 'nome' => $a->nome, 'icone' => $a->icone, 'descricao' => $a->descricao])) }},
+            areas: {{ Js::from($areas->map(fn ($a) => ['id' => $a->id, 'nome' => $a->nome_publico, 'icone' => $a->icone, 'descricao' => $a->descricao])) }},
             hoje: {{ Js::from(now()->toDateString()) }},
             old: {{ Js::from(old()) }},
             erros: {{ Js::from($errors->toArray()) }},
@@ -79,7 +79,7 @@
                                 <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-verde text-white">
                                     <x-ui.icon :name="$area->icone" class="h-5 w-5" />
                                 </span>
-                                <span class="font-serif text-base font-semibold text-texto">{{ $area->nome }}</span>
+                                <span class="font-serif text-base font-semibold text-texto">{{ $area->nome_publico }}</span>
                             </button>
                         @endforeach
                     </div>
@@ -251,7 +251,11 @@
                         <div>
                             <label for="observacao" class="text-sm font-medium text-texto">Observação / motivo do contato <span class="font-normal text-texto/50">(opcional)</span></label>
                             <textarea id="observacao" name="observacao" x-model="form.observacao" rows="3"
+                                      aria-describedby="ajuda-observacao"
                                       class="mt-1.5 w-full rounded-lg border border-bege bg-offwhite px-4 py-2.5 text-sm text-texto focus:border-dourado focus:ring-1 focus:ring-dourado focus:outline-none"></textarea>
+                            <p id="ajuda-observacao" class="mt-1.5 text-xs text-texto/50">
+                                Evite inserir documentos ou informações sigilosas neste campo.
+                            </p>
                         </div>
 
                         <div class="flex items-start gap-3 border-t border-bege pt-5">
@@ -311,6 +315,27 @@
                             <dd class="mt-1 text-base text-texto" x-text="form.assunto"></dd>
                         </div>
                     </dl>
+
+                    {{-- Aviso aprovado pela cliente (Fase 5) — precisa aparecer antes da
+                         confirmação, legível, sem letra miúda. --}}
+                    <div class="mt-6 rounded-2xl border border-dourado/25 bg-dourado/5 p-5 text-xs leading-relaxed text-texto/70 sm:p-6">
+                        <p class="flex items-start gap-2">
+                            <x-ui.icon name="shield-check" class="mt-0.5 h-4 w-4 shrink-0 text-dourado-texto" />
+                            <span>
+                                <strong class="font-semibold text-texto">Importante:</strong>
+                                ao concluir o agendamento, você declara estar ciente de que o horário
+                                reservado é destinado ao seu atendimento e se compromete a comparecer
+                                na data e horário escolhidos. Em situações excepcionais e por motivos
+                                de força maior ou imprevistos profissionais, o escritório poderá
+                                precisar cancelar ou reagendar um atendimento previamente reservado.
+                                Nesses casos, o cliente será comunicado.
+                            </span>
+                        </p>
+                        <p class="mt-3">
+                            O agendamento realizado pelo site não substitui uma consulta jurídica e
+                            não estabelece, por si só, relação de contratação de serviços advocatícios.
+                        </p>
+                    </div>
 
                     <div class="mt-6 flex items-center justify-between">
                         <button type="button" @click="irParaStep(4)" class="link-arrow text-dourado-texto">

@@ -16,6 +16,24 @@ Route::get('/politica-de-privacidade', function () {
     return view('pages.politica-privacidade');
 })->name('politica-privacidade');
 
+/**
+ * Sitemap mínimo (Fase 5) — só as páginas públicas reais do site. Gerado
+ * dinamicamente via url()/route() para refletir automaticamente o domínio
+ * real assim que APP_URL for configurado em produção (Fase 6) — nenhum
+ * domínio fixo é escrito aqui.
+ */
+Route::get('/sitemap.xml', function () {
+    $urls = [
+        ['loc' => route('home'), 'changefreq' => 'monthly', 'priority' => '1.0'],
+        ['loc' => route('agendamento.create'), 'changefreq' => 'monthly', 'priority' => '0.8'],
+        ['loc' => route('politica-privacidade'), 'changefreq' => 'yearly', 'priority' => '0.3'],
+    ];
+
+    return response()
+        ->view('sitemap', ['urls' => $urls])
+        ->header('Content-Type', 'application/xml');
+})->name('sitemap');
+
 Route::prefix('agendamento')->name('agendamento.')->group(function () {
     Route::get('/', [AppointmentController::class, 'create'])->name('create');
     Route::get('/disponibilidade', [AppointmentController::class, 'disponibilidadeMensal'])
