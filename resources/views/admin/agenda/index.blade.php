@@ -8,6 +8,7 @@
         'visao' => $visao,
         'status' => $statusFiltro,
         'area_atuacao_id' => $areaFiltro,
+        'busca' => $buscaFiltro,
     ];
 
     $diaAnterior = route('admin.agenda', array_merge($paramsBase, ['visao' => 'dia', 'data' => $dataSelecionada->subDay()->toDateString()]));
@@ -72,9 +73,16 @@
                 </a>
             </div>
 
-            {{-- Filtros (item 10): data, status, área — sem busca avançada --}}
+            {{-- Filtros + busca (Fase 4D): busca é condição adicional aos filtros existentes --}}
             <form method="GET" action="{{ route('admin.agenda') }}" class="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="visao" value="{{ $visao }}">
+                <label for="filtro-busca" class="sr-only">Buscar por nome, e-mail ou telefone</label>
+                <input
+                    type="text" id="filtro-busca" name="busca" value="{{ $buscaFiltro }}"
+                    placeholder="Buscar por nome, e-mail ou telefone"
+                    class="w-56 rounded-lg border border-bege bg-white px-3 py-1.5 text-sm text-texto focus:border-dourado focus:ring-1 focus:ring-dourado focus:outline-none"
+                >
+
                 <label for="filtro-data" class="sr-only">Data</label>
                 <input
                     type="date" id="filtro-data" name="data" value="{{ $dataSelecionada->toDateString() }}"
@@ -100,7 +108,7 @@
                 <button type="submit" class="rounded-full bg-verde px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-verde-escuro">
                     Filtrar
                 </button>
-                @if ($statusFiltro || $areaFiltro)
+                @if ($statusFiltro || $areaFiltro || $buscaFiltro)
                     <a href="{{ route('admin.agenda', ['visao' => $visao, 'data' => $dataSelecionada->toDateString()]) }}" class="text-sm font-medium text-dourado-texto underline underline-offset-2">
                         Limpar filtros
                     </a>
@@ -119,7 +127,13 @@
 
                     @if ($consultasDoDia->isEmpty())
                         <div class="mt-3 rounded-2xl border border-dashed border-bege bg-white/60 px-5 py-8 text-center text-sm text-texto/60">
-                            Nenhuma consulta {{ $statusFiltro || $areaFiltro ? 'encontrada com esses filtros' : 'agendada' }} para este dia.
+                            @if ($buscaFiltro)
+                                Nenhuma consulta encontrada para essa busca.
+                            @elseif ($statusFiltro || $areaFiltro)
+                                Nenhuma consulta encontrada com esses filtros para este dia.
+                            @else
+                                Nenhuma consulta agendada para este dia.
+                            @endif
                         </div>
                     @else
                         <div class="mt-3 space-y-2">

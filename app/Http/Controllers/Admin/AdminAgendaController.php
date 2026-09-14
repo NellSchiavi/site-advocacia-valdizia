@@ -35,6 +35,7 @@ class AdminAgendaController extends Controller
             'data' => ['nullable', 'date_format:Y-m-d'],
             'status' => ['nullable', Rule::in(array_keys(Appointment::STATUS_LABELS))],
             'area_atuacao_id' => ['nullable', 'integer', 'exists:areas_atuacao,id'],
+            'busca' => ['nullable', 'string', 'max:190'],
         ]);
 
         $visao = $validado['visao'] ?? 'dia';
@@ -59,6 +60,7 @@ class AdminAgendaController extends Controller
             ->whereBetween('data', [$inicioIntervalo->toDateString(), $fimIntervalo->toDateString()])
             ->when($validado['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($validado['area_atuacao_id'] ?? null, fn ($query, $areaId) => $query->where('area_atuacao_id', $areaId))
+            ->when($validado['busca'] ?? null, fn ($query, $busca) => $this->aplicarBusca($query, $busca))
             ->orderBy('data')
             ->orderBy('hora_inicio')
             ->get();
@@ -90,7 +92,36 @@ class AdminAgendaController extends Controller
             'areas' => AreaAtuacao::query()->orderBy('nome')->get(['id', 'nome']),
             'statusFiltro' => $validado['status'] ?? null,
             'areaFiltro' => $validado['area_atuacao_id'] ?? null,
+            'buscaFiltro' => $validado['busca'] ?? null,
         ]);
+    }
+
+    /**
+     * Busca textual por nome, e-mail ou telefone do cliente — condição
+     * adicional aos filtros de data/status/área, nunca os substitui.
+     * Feita no banco (LIKE), sem carregar a tabela inteira para o PHP.
+     *
+     * telefone_cliente não tem máscara imposta em nenhuma camada (o input
+     * público é livre, sem JS de formatação) — o valor pode estar salvo com
+     * ou sem "(11) 99999-9999". Para não depender do formato exato digitado
+     * na busca, remove espaço/parênteses/hífen dos dois lados na comparação
+     * de telefone, sem alterar o dado armazenado nem criar coluna nova.
+     */
+    private function aplicarBusca($query, string $busca)
+    {
+        $soDigitos = preg_replace('/\D+/', '', $busca);
+
+        return $query->where(function ($query) use ($busca, $soDigitos) {
+            $query->where('nome_cliente', 'like', "%{$busca}%")
+                ->orWhere('email_cliente', 'like', "%{$busca}%");
+
+            if ($soDigitos !== '') {
+                $query->orWhereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(telefone_cliente, ' ', ''), '(', ''), ')', ''), '-', '') LIKE ?",
+                    ["%{$soDigitos}%"]
+                );
+            }
+        });
     }
 
     /**

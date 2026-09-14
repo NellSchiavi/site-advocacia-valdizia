@@ -45,6 +45,18 @@ class AgendamentoPublicoTest extends TestCase
         ];
     }
 
+    /**
+     * Data garantidamente anterior a "agora" (fuso da aplicação), para o
+     * teste de rejeição de data passada. Não usa "próxima segunda - 1
+     * semana": quando o teste roda numa segunda-feira, isso resultaria na
+     * própria data atual, não numa data passada — 30 dias atrás elimina
+     * essa coincidência sem depender do dia da semana em que os testes rodam.
+     */
+    private function dataInequivocamentePassada(): \Carbon\CarbonImmutable
+    {
+        return \Carbon\CarbonImmutable::now()->subDays(30)->startOfDay();
+    }
+
     public function test_pagina_de_agendamento_carrega_e_lista_areas_ativas(): void
     {
         $resposta = $this->get(route('agendamento.create'));
@@ -218,11 +230,7 @@ class AgendamentoPublicoTest extends TestCase
 
     public function test_post_com_data_passada_e_rejeitado(): void
     {
-        // Segunda-feira anterior à "próxima segunda" usada nos demais testes
-        // — garante um dia de expediente normal, porém no passado.
-        $segundaPassada = $this->proximaSegundaFeira()->subWeek();
-
-        $resposta = $this->post(route('agendamento.store'), $this->dadosValidos($segundaPassada, '09:00'));
+        $resposta = $this->post(route('agendamento.store'), $this->dadosValidos($this->dataInequivocamentePassada(), '09:00'));
 
         $resposta->assertSessionHasErrors('hora_inicio');
         $this->assertDatabaseCount('appointments', 0);

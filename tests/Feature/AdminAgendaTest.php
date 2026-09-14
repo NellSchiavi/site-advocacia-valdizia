@@ -320,4 +320,282 @@ class AdminAgendaTest extends TestCase
         $resposta->assertDontSee('privado@example.com');
         $resposta->assertDontSee('11955554444');
     }
+
+    // ==========================================================
+    // Fase 4D — busca por nome, e-mail ou telefone
+    // ==========================================================
+
+    public function test_busca_por_nome_completo(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);
+        $this->criarConsulta(['nome_cliente' => 'João Souza', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'Maria da Silva',
+        ]));
+
+        $resposta->assertSee('Maria da Silva');
+        $resposta->assertDontSee('João Souza');
+    }
+
+    public function test_busca_por_nome_parcial(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);
+        $this->criarConsulta(['nome_cliente' => 'João Souza', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'mar',
+        ]));
+
+        $resposta->assertSee('Maria da Silva');
+        $resposta->assertDontSee('João Souza');
+    }
+
+    public function test_busca_por_nome_sem_resultado(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'Cliente Inexistente',
+        ]));
+
+        $resposta->assertDontSee('Maria da Silva');
+        $resposta->assertSee('Nenhuma consulta encontrada para essa busca.');
+    }
+
+    public function test_busca_por_email_completo(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $alvo = $this->criarConsulta(['nome_cliente' => 'Cliente Alvo', 'email_cliente' => 'alvo@example.com']);
+        $this->criarConsulta(['nome_cliente' => 'Cliente Outro', 'email_cliente' => 'outro@example.com', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'alvo@example.com',
+        ]));
+
+        $resposta->assertSee('Cliente Alvo');
+        $resposta->assertDontSee('Cliente Outro');
+        $this->assertNotNull($alvo);
+    }
+
+    public function test_busca_por_parte_do_email(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Cliente Alvo', 'email_cliente' => 'joao@exemplo.com']);
+        $this->criarConsulta(['nome_cliente' => 'Cliente Outro', 'email_cliente' => 'maria@outro.com', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'joao@exemplo',
+        ]));
+
+        $resposta->assertSee('Cliente Alvo');
+        $resposta->assertDontSee('Cliente Outro');
+    }
+
+    public function test_busca_por_email_sem_resultado(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Cliente Alvo', 'email_cliente' => 'alvo@example.com']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'inexistente@example.com',
+        ]));
+
+        $resposta->assertDontSee('Cliente Alvo');
+        $resposta->assertSee('Nenhuma consulta encontrada para essa busca.');
+    }
+
+    public function test_busca_por_telefone_no_formato_armazenado(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Cliente Alvo', 'telefone_cliente' => '11988887777']);
+        $this->criarConsulta(['nome_cliente' => 'Cliente Outro', 'telefone_cliente' => '11933332222', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => '11988887777',
+        ]));
+
+        $resposta->assertSee('Cliente Alvo');
+        $resposta->assertDontSee('Cliente Outro');
+    }
+
+    public function test_busca_por_telefone_com_mascara_encontra_telefone_sem_mascara(): void
+    {
+        // telefone_cliente não tem máscara imposta em nenhuma camada — a
+        // normalização (remover espaço/parênteses/hífen dos dois lados)
+        // precisa funcionar mesmo quando o valor salvo é só dígitos.
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Cliente Alvo', 'telefone_cliente' => '11988887777']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => '(11) 98888-7777',
+        ]));
+
+        $resposta->assertSee('Cliente Alvo');
+    }
+
+    public function test_busca_por_telefone_sem_mascara_encontra_telefone_com_mascara(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta(['nome_cliente' => 'Cliente Alvo', 'telefone_cliente' => '(11) 98888-7777']);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => '11988887777',
+        ]));
+
+        $resposta->assertSee('Cliente Alvo');
+    }
+
+    public function test_busca_combinada_com_data(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $alvo = $this->criarConsulta(['nome_cliente' => 'Maria da Silva', 'data' => $segunda->toDateString()]);
+        $this->criarConsulta(['nome_cliente' => 'Maria da Silva', 'data' => $segunda->addWeek()->toDateString()]);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $alvo->data->toDateString(),
+            'busca' => 'Maria',
+        ]));
+
+        $resposta->assertSee('Maria da Silva');
+        $resposta->assertSee('Consultas (1)');
+    }
+
+    public function test_busca_combinada_com_status(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $confirmada = $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);
+        $cancelada = $this->criarConsulta(['nome_cliente' => 'Maria Souza', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+        $cancelada->status = Appointment::STATUS_CANCELLED;
+        $cancelada->save();
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'Maria',
+            'status' => Appointment::STATUS_CANCELLED,
+        ]));
+
+        $resposta->assertSee('Maria Souza');
+        $resposta->assertDontSee('Maria da Silva');
+        $this->assertNotNull($confirmada);
+    }
+
+    public function test_busca_combinada_com_area(): void
+    {
+        $outraArea = AreaAtuacao::query()->create(['slug' => 'direito-civil-teste-4d', 'nome' => 'Direito Civil', 'ativo' => true]);
+        $segunda = $this->proximaSegundaFeira();
+
+        $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);
+        $this->criarConsulta([
+            'nome_cliente' => 'Maria Souza',
+            'area_atuacao_id' => $outraArea->id,
+            'hora_inicio' => '11:00:00',
+            'hora_fim' => '12:00:00',
+        ]);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'Maria',
+            'area_atuacao_id' => $this->area->id,
+        ]));
+
+        $resposta->assertSee('Maria da Silva');
+        $resposta->assertDontSee('Maria Souza');
+    }
+
+    public function test_busca_combinada_com_data_status_e_area(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+
+        $alvo = $this->criarConsulta(['nome_cliente' => 'Maria da Silva']);
+        $alvo->status = Appointment::STATUS_CONFIRMED;
+        $alvo->save();
+
+        // Mesmo dia/área, nome parecido, status diferente — não deve aparecer.
+        $statusErrado = $this->criarConsulta(['nome_cliente' => 'Maria Pendente', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+        $statusErrado->status = Appointment::STATUS_CANCELLED;
+        $statusErrado->save();
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'Maria',
+            'status' => Appointment::STATUS_CONFIRMED,
+            'area_atuacao_id' => $this->area->id,
+        ]));
+
+        $resposta->assertSee('Maria da Silva');
+        $resposta->assertDontSee('Maria Pendente');
+    }
+
+    public function test_busca_nao_cria_endpoint_publico(): void
+    {
+        $resposta = $this->get(route('admin.agenda', ['busca' => 'qualquer']));
+
+        $resposta->assertRedirect(route('admin.login'));
+    }
+
+    public function test_busca_respeita_minimizacao_de_dados_na_listagem(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+        $this->criarConsulta([
+            'nome_cliente' => 'Maria da Silva',
+            'email_cliente' => 'maria@example.com',
+            'telefone_cliente' => '11988887777',
+        ]);
+
+        $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+            'data' => $segunda->toDateString(),
+            'busca' => 'Maria',
+        ]));
+
+        $resposta->assertSee('Maria da Silva');
+        $resposta->assertDontSee('maria@example.com');
+        $resposta->assertDontSee('11988887777');
+    }
+
+    public function test_busca_nao_quebra_regressao_de_status_filtraveis(): void
+    {
+        $segunda = $this->proximaSegundaFeira();
+
+        $pendente = $this->criarConsulta(['nome_cliente' => 'Consulta Um']);
+        $pendente->status = Appointment::STATUS_PENDING;
+        $pendente->save();
+
+        // Atribuição direta (não via AppointmentService) — assim como os
+        // demais testes de regressão desta classe, não depende da regra
+        // temporal da Fase 4B.2 nem precisa de travelTo().
+        $concluida = $this->criarConsulta(['nome_cliente' => 'Consulta Dois', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
+        $concluida->status = Appointment::STATUS_COMPLETED;
+        $concluida->save();
+
+        $naoCompareceu = $this->criarConsulta(['nome_cliente' => 'Consulta Tres', 'hora_inicio' => '13:00:00', 'hora_fim' => '14:00:00']);
+        $naoCompareceu->status = Appointment::STATUS_NO_SHOW;
+        $naoCompareceu->save();
+
+        foreach ([
+            [Appointment::STATUS_PENDING, 'Consulta Um'],
+            [Appointment::STATUS_COMPLETED, 'Consulta Dois'],
+            [Appointment::STATUS_NO_SHOW, 'Consulta Tres'],
+        ] as [$status, $nomeEsperado]) {
+            $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
+                'data' => $segunda->toDateString(),
+                'busca' => 'Consulta',
+                'status' => $status,
+            ]));
+
+            $resposta->assertSee($nomeEsperado);
+        }
+    }
 }
