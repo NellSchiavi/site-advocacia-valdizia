@@ -252,9 +252,3 @@ Rodar tudo:
 docker compose exec laravel.test php artisan test
 ```
 
-## Próximos passos
-
-- Configuração de produção (Locaweb): domínio, certificado, variáveis de ambiente, provedor de e-mail real.
-- Revisão jurídica do conteúdo da Política de Privacidade (hoje é placeholder).
-- Lembrete automático de consulta, remarcação e cancelamento pelo próprio cliente (fora do escopo atual).
-- Avaliar necessidade de múltiplos perfis administrativos (ex.: secretária) e de mover o envio de e-mail para fila conforme o volume crescer.
