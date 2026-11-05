@@ -2,6 +2,8 @@
 
 Site institucional com sistema de agendamento de consultas e painel administrativo para a Dra. Valdizia Melo (Direito Previdenciário, Cível e de Família).
 
+Assável pelo link: https://dravaldiziamelo.com.br/ 
+
 > Planejamento técnico completo (arquitetura, schema, decisões e riscos) em [`PLANO-TECNICO.md`](./PLANO-TECNICO.md). Este README cobre apenas o dia a dia de desenvolvimento.
 
 **Status atual**: fluxo público de agendamento e painel administrativo completos — autenticação (com recuperação de senha), agenda (consultas, cancelamento/conclusão/não comparecimento, busca por nome/e-mail/telefone), configuração de disponibilidade (horários semanais, exceções, feriados, bloqueios), e-mails transacionais (confirmação de agendamento, cancelamento manual e cancelamento por alteração de disponibilidade) e headers de segurança/CSP. **Ainda não há provedor de e-mail real configurado para produção nem ambiente de produção/Locaweb** — ver "O que ainda não foi implementado" abaixo.
