@@ -14,7 +14,7 @@ return new class extends Migration
         // Tabela de mecanismo de concorrência (não é dado de negócio): 1 linha por
         // data com pelo menos uma tentativa de agendamento, travada via
         // "SELECT ... FOR UPDATE" para serializar reservas concorrentes no mesmo dia
-        // antes da checagem de sobreposição de intervalo (ver PLANO-TECNICO.md, seção 3).
+        // antes da checagem de sobreposição de intervalo.
         Schema::create('agenda_locks', function (Blueprint $table) {
             $table->date('data')->primary();
             $table->timestamp('created_at')->useCurrent();

@@ -5,9 +5,8 @@ namespace App\Http\Requests\Admin;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Fase 4F: só valida o formato do e-mail — a existência (ou não) de conta
- * associada nunca é verificada aqui nem exposta pela validação, exatamente
- * para não abrir uma via de enumeração de usuários.
+ * Valida apenas o formato do e-mail. A existência de conta associada não é
+ * verificada nem exposta aqui, para evitar enumeração de usuários.
  */
 class AdminForgotPasswordRequest extends FormRequest
 {

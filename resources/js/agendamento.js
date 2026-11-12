@@ -13,7 +13,7 @@ const MENSAGEM_ERRO_DISPONIBILIDADE = 'Não foi possível carregar a disponibili
 const TIMEOUT_MS = 12000;
 
 /**
- * Busca JSON tratando explicitamente os casos de falha (item 3 da Fase 3.2):
+ * Busca JSON tratando explicitamente os casos de falha:
  * resposta HTTP não-2xx (inclui 429 do rate limit), erro de rede, timeout de
  * conexão lenta e corpo que não é JSON válido. Nunca deixa um erro técnico
  * silenciosamente virar "não há horários" — sempre retorna um estado
@@ -54,7 +54,7 @@ async function buscarDisponibilidade(url) {
 }
 
 /**
- * Wizard de agendamento público (Fase 3). Toda a disponibilidade vem do
+ * Wizard de agendamento público. Toda a disponibilidade vem do
  * backend (AvailabilityService, via os endpoints /agendamento/disponibilidade
  * e /agendamento/horarios) — este arquivo só desenha a interface e nunca
  * decide sozinho o que está disponível.

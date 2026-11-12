@@ -12,10 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('appointments', function (Blueprint $table) {
-            // Fase 4C, item 9: assunto passa a ser obrigatório no agendamento
-            // público (nome/e-mail/telefone já eram) — necessário para o
-            // escritório saber do que trata a consulta e para o e-mail de
-            // cancelamento administrativo fazer sentido para o cliente.
+            // Assunto obrigatório no agendamento público, para que o
+            // escritório saiba do que trata a consulta.
             $table->string('assunto', 150)->after('telefone_cliente');
         });
     }

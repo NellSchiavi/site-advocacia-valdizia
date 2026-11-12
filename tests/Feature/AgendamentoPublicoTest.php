@@ -12,7 +12,7 @@ use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
 
 /**
- * Cobre o fluxo público de agendamento (Fase 3): página, endpoints de
+ * Cobre o fluxo público de agendamento: página, endpoints de
  * disponibilidade/horários e a submissão real via AppointmentService —
  * sem duplicar nenhuma regra de negócio, só verificando a integração HTTP.
  */
@@ -166,7 +166,7 @@ class AgendamentoPublicoTest extends TestCase
     }
 
     // ==========================================================
-    // Fase 4E — e-mail de confirmação
+    // E-mail de confirmação
     // ==========================================================
 
     public function test_agendamento_valido_dispara_email_de_confirmacao(): void
@@ -270,7 +270,7 @@ class AgendamentoPublicoTest extends TestCase
     }
 
     /**
-     * Item 1 da Fase 3.2: uma área de atuação com ativo=false não pode
+     * Uma área de atuação com ativo=false não pode
      * receber novos agendamentos — nem confiando só no formulário/frontend.
      */
     public function test_post_com_area_de_atuacao_inativa_e_rejeitado(): void
@@ -342,7 +342,7 @@ class AgendamentoPublicoTest extends TestCase
     }
 
     /**
-     * Item 2 da Fase 3.2: a URL de confirmação usa
+     * A URL de confirmação usa
      * URL::temporarySignedRoute() com validade de 2 dias.
      */
     public function test_url_assinada_valida_permite_acesso_a_confirmacao(): void
@@ -379,7 +379,7 @@ class AgendamentoPublicoTest extends TestCase
         $redirect = $this->post(route('agendamento.store'), $this->dadosValidos($segunda, '09:00'));
         $url = $redirect->headers->get('Location');
 
-        // A assinatura é válida por 2 dias (item 2 da Fase 3.2); avançamos
+        // A assinatura é válida por 2 dias; avançamos
         // 3 dias no relógio para simular o link já expirado.
         Carbon::setTestNow(Carbon::now()->addDays(3));
 

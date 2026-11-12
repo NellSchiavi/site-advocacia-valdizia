@@ -6,9 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Fase 4F: valida os dados do formulário de nova senha. A validade do
- * próprio token (existe/expirou/pertence a este e-mail) é responsabilidade
- * do PasswordBroker nativo, checada no controller — não duplicada aqui.
+ * Valida o formulário de nova senha. A validade do token (existência,
+ * expiração, e-mail correspondente) é verificada pelo PasswordBroker no
+ * controller.
  */
 class AdminResetPasswordRequest extends FormRequest
 {

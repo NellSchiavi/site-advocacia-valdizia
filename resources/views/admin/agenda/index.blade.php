@@ -45,7 +45,7 @@
             </div>
         </div>
 
-        {{-- Feedback de ações (item 6/13) --}}
+        {{-- Feedback de ações --}}
         @if (session('status'))
             <div class="mt-4 rounded-lg border border-verde/25 bg-verde/10 px-4 py-3 text-sm text-verde" role="status">
                 {{ session('status') }}
@@ -73,7 +73,7 @@
                 </a>
             </div>
 
-            {{-- Filtros + busca (Fase 4D): busca é condição adicional aos filtros existentes --}}
+            {{-- Filtros + busca: a busca é condição adicional aos filtros --}}
             <form method="GET" action="{{ route('admin.agenda') }}" class="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="visao" value="{{ $visao }}">
                 <label for="filtro-busca" class="sr-only">Buscar por nome, e-mail ou telefone</label>
@@ -163,8 +163,7 @@
                 </div>
             </div>
         @else
-            {{-- VISÃO SEMANAL: 1 coluna no mobile, 2 no tablet, 7 no desktop —
-                 nunca comprime a grade desktop numa tela pequena (item 11). --}}
+            {{-- VISÃO SEMANAL: 1 coluna no mobile, 2 no tablet, 7 no desktop. --}}
             <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
                 @for ($i = 0; $i < 7; $i++)
                     @php($diaColuna = $inicioIntervalo->addDays($i))
@@ -188,11 +187,9 @@
             </div>
         @endif
 
-        {{-- Modal de detalhe da consulta (item 4). Auditoria de overflow:
-             a viewport pode ser mais baixa que o conteúdo (observação longa,
-             ações + confirmação abertas ao mesmo tempo) — o card interno
-             precisa de altura máxima e rolagem própria, nunca ultrapassando
-             a viewport sem forma de alcançar o restante do conteúdo. --}}
+        {{-- Modal de detalhe da consulta. O conteúdo pode ser mais alto que
+             a viewport (observação longa, ações + confirmação abertas), por
+             isso o card tem altura máxima e rolagem própria. --}}
         <div
             x-show="modalAberto"
             x-cloak
@@ -204,9 +201,8 @@
             @keydown.tab="aprisionarFoco($event)"
         >
             <div @click.outside="fecharModal()" class="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-lg">
-                {{-- Cabeçalho fixo durante a rolagem interna — o botão Fechar
-                     precisa continuar acessível sem precisar rolar de volta
-                     ao topo do card (auditoria de overflow). --}}
+                {{-- Cabeçalho fixo durante a rolagem interna, mantendo o botão
+                     Fechar sempre acessível. --}}
                 <div class="sticky top-0 z-10 flex items-center justify-between bg-white px-6 pt-6 pb-4">
                     <h2 class="font-serif text-lg font-semibold text-texto">Detalhe da consulta</h2>
                     <button type="button" x-ref="botaoFechar" @click="fecharModal()" class="rounded-full p-1.5 text-texto/60 hover:bg-bege/40" aria-label="Fechar">
@@ -251,7 +247,7 @@
                             </div>
                         </dl>
 
-                        {{-- Ações (item 6/7): só as válidas para o status atual --}}
+                        {{-- Ações: só as válidas para o status atual --}}
                         <div class="mt-6 border-t border-bege pt-5" x-show="!confirmando">
                             <template x-if="detalhe.status === 'confirmed' || detalhe.status === 'pending'">
                                 <div class="flex flex-wrap gap-2">
@@ -275,7 +271,7 @@
                             </template>
                         </div>
 
-                        {{-- Confirmação explícita antes de ação irreversível (item 6) --}}
+                        {{-- Confirmação explícita antes de ação irreversível --}}
                         <div x-show="confirmando" x-cloak class="mt-6 border-t border-bege pt-5">
                             <p class="text-sm font-medium text-texto" x-text="textoConfirmacao()"></p>
 

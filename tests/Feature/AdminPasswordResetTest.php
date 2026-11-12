@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 /**
- * Fase 4F: recuperação de senha do painel administrativo. Cobre o fluxo
+ * Recuperação de senha do painel administrativo. Cobre o fluxo
  * completo via PasswordBroker nativo — nunca revelando se um e-mail tem ou
  * não conta associada.
  */
@@ -66,7 +66,7 @@ class AdminPasswordResetTest extends TestCase
 
         $resposta->assertRedirect();
         // Mesma mensagem literal do teste anterior — nenhuma diferença
-        // observável entre e-mail existente e inexistente (item 5).
+        // observável entre e-mail existente e inexistente.
         $this->assertSame(self::MENSAGEM_GENERICA, session('status'));
         Mail::assertNothingSent();
     }

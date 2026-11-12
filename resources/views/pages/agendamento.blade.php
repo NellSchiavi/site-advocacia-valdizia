@@ -316,8 +316,7 @@
                         </div>
                     </dl>
 
-                    {{-- Aviso aprovado pela cliente (Fase 5) — precisa aparecer antes da
-                         confirmação, legível, sem letra miúda. --}}
+                    {{-- Aviso exibido antes da confirmação, em texto legível. --}}
                     <div class="mt-6 rounded-2xl border border-dourado/25 bg-dourado/5 p-5 text-xs leading-relaxed text-texto/70 sm:p-6">
                         <p class="flex items-start gap-2">
                             <x-ui.icon name="shield-check" class="mt-0.5 h-4 w-4 shrink-0 text-dourado-texto" />

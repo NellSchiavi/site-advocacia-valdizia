@@ -1,8 +1,6 @@
 @php
-    // Ordem canônica usada em todo o projeto (Fase 0 e Fase 2): Previdenciário, Cível, Família.
-    // Nomes apresentados ao visitante (Fase 5): "Direito Cível" na
-    // comunicação pública — o nome interno "Direito Civil" (banco/painel
-    // administrativo) permanece inalterado, ver AreaAtuacao::nomePublico().
+    // Ordem canônica usada em todo o projeto: Previdenciário, Cível, Família.
+    // Nomes públicos — ver AreaAtuacao::nomePublico().
     $areas = [
         [
             'icon' => 'user',

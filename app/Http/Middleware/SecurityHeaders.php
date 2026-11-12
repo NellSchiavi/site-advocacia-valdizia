@@ -7,18 +7,14 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Fase 4F: headers de segurança aplicados a toda resposta do grupo "web"
- * (site público + painel administrativo). Nenhum destes headers depende de
- * infraestrutura externa — só declara ao navegador comportamentos mais
- * seguros que ele já suporta nativamente.
+ * Headers de segurança aplicados a toda resposta do grupo "web" (site
+ * público e painel administrativo).
  *
- * CSP: todo o front-end é self-hosted via Vite (JS/CSS/fontes — sem CDN, sem
- * Google Fonts externo, sem imagem/iframe externo — confirmado por auditoria
- * de código na Fase 4F), então font-src/img-src/connect-src ficam
- * restritos a 'self' sem exceção. script-src e style-src precisaram de duas
- * concessões pontuais, ambas exigidas pelo Alpine.js (build padrão, não a
- * build @alpinejs/csp) e confirmadas via Playwright real (não só leitura de
- * código) — sem elas a aplicação inteira para de funcionar:
+ * CSP: todo o front-end é servido pelo próprio domínio via Vite (JS, CSS e
+ * fontes, sem CDN nem recursos externos), então font-src/img-src/connect-src
+ * ficam restritos a 'self'. script-src e style-src têm duas concessões
+ * exigidas pela build padrão do Alpine.js (não a @alpinejs/csp); sem elas a
+ * interface deixa de funcionar:
  *
  *  - 'unsafe-eval' em script-src: Alpine avalia expressões de x-data/x-show/
  *    @click/etc. via `new Function()`.
@@ -29,10 +25,9 @@ use Symfony\Component\HttpFoundation\Response;
  *    atributo style="" no HTML-fonte, e não existe hash/nonce que cubra
  *    valor calculado em runtime.
  *
- * Migrar para a build CSP do Alpine (registrar tudo via Alpine.data() e
- * reescrever x-show/x-transition/@click em várias views) é uma refatoração
- * grande — decisão consciente de NÃO forçar isso nesta fase (ver relatório
- * da Fase 4F). Nenhuma das duas exceções permite executar um <script> ou
+ * Remover essas concessões exige migrar para a build CSP do Alpine
+ * (registrar componentes via Alpine.data() e reescrever as diretivas nas
+ * views). Nenhuma das duas exceções permite executar um <script> ou
  * <style> injetado por payload de XSS refletido: script-src/style-src ainda
  * exigem 'self' para a ORIGEM do recurso, as exceções só liberam que o
  * bundle JÁ confiável (nosso próprio) manipule eval/estilo internamente.
@@ -45,12 +40,10 @@ class SecurityHeaders
     }
 
     /**
-     * Extraído de handle() para poder ser reaproveitado por
-     * bootstrap/app.php (Exceptions::respond()) — uma resposta construída a
-     * partir de uma exceção (redirect de guest/auth, 404, 419, 500...) é
-     * montada FORA do pipeline normal de middleware, então o "depois do
-     * $next()" deste middleware nunca roda para ela. Sem esse segundo ponto
-     * de aplicação, páginas de erro ficariam sem os headers de segurança.
+     * Também chamado por bootstrap/app.php (Exceptions::respond()): respostas
+     * geradas a partir de exceções (redirect de guest/auth, 404, 419, 500...)
+     * são montadas fora do pipeline de middleware e, sem isso, ficariam sem
+     * os headers de segurança.
      */
     public function aplicar(Response $response): Response
     {

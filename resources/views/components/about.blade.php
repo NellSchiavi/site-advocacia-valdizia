@@ -9,10 +9,8 @@
 <section id="sobre" class="bg-bege/40">
     <div class="mx-auto grid max-w-7xl grid-cols-1 lg:grid-cols-12">
         {{--
-            Placeholder ilustrativo (CSS/SVG) no lugar da fotografia de
-            ambiente da referência (estatueta + livros). Nenhuma imagem real
-            foi inventada — é só uma composição decorativa com os valores do
-            escritório, substituível por uma fotografia real no futuro.
+            Composição decorativa (CSS/SVG) com os valores do escritório.
+            Pode ser substituída por uma fotografia de ambiente.
         --}}
         <div class="relative flex min-h-[20rem] items-center justify-center bg-verde-escuro px-10 py-16 lg:col-span-5 lg:min-h-0">
             <div class="w-full max-w-[15rem]">
@@ -34,7 +32,7 @@
                 Advocacia com escuta, responsabilidade e compromisso com cada história
             </h2>
 
-            {{-- Texto institucional oficial, aprovado pela cliente (Fase 5). --}}
+            {{-- Texto institucional oficial. --}}
             <div class="mt-6 max-w-xl space-y-4 text-base leading-relaxed text-texto/70">
                 <p>
                     Dra. Valdizia Melo é advogada com atuação nas áreas de Direito Previdenciário,
@@ -59,8 +57,7 @@
                 </p>
             </div>
 
-            {{-- Destaque da Comissão de Mulheres Advogadas — informação fornecida pela
-                 cliente, sem atribuir cargo/coordenação não confirmado. --}}
+            {{-- Destaque da Comissão de Mulheres Advogadas. --}}
             <div class="mt-8 max-w-xl rounded-2xl border border-dourado/25 bg-dourado/5 px-5 py-4">
                 <p class="text-xs font-semibold tracking-[0.15em] text-dourado-texto uppercase">
                     Compromisso com a advocacia feminina

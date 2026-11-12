@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
  * Feriados nacionais fixos (recorrência anual automática). Feriados móveis
  * (Carnaval, Sexta-feira Santa, Corpus Christi) mudam de data todo ano e
  * devem ser cadastrados manualmente pela administradora na tela de Feriados
- * — não são chutados aqui para não fixar uma data errada no banco.
+ * para não fixar uma data incorreta no banco.
  */
 class HolidaySeeder extends Seeder
 {
@@ -24,8 +24,7 @@ class HolidaySeeder extends Seeder
             ['nome' => 'Finados', 'mes' => 11, 'dia' => 2],
             ['nome' => 'Proclamação da República', 'mes' => 11, 'dia' => 15],
             ['nome' => 'Natal', 'mes' => 12, 'dia' => 25],
-            // Feriado municipal (Ferraz de Vasconcelos — SP), cadastrado
-            // explicitamente na Fase 4C.
+            // Feriado municipal (Ferraz de Vasconcelos — SP).
             ['nome' => 'Aniversário de Ferraz de Vasconcelos', 'mes' => 10, 'dia' => 14],
         ];
 

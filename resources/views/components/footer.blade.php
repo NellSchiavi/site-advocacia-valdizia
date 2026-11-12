@@ -6,7 +6,7 @@
         ['label' => 'Agendamento', 'href' => route('agendamento.create')],
         ['label' => 'Contato', 'href' => '/#contato'],
     ];
-    // Nomes apresentados ao visitante (Fase 5) — ver AreaAtuacao::nomePublico().
+    // Nomes públicos — ver AreaAtuacao::nomePublico().
     $areasRodape = ['Direito Previdenciário', 'Direito Cível', 'Direito de Família'];
     $whatsapp = 'https://api.whatsapp.com/send/?phone=5511994227774&text=Ol%C3%A1%20Dra.%20Valdizia%2C%20vim%20pelo%20seu%20site%20e%20gostaria%20de%20tirar%20algumas%20d%C3%BAvidas.&type=phone_number&app_absent=0';
     $instagram = 'https://www.instagram.com/valdiziamello/';

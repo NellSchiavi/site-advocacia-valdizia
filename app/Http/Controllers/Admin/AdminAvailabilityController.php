@@ -16,10 +16,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * Painel de disponibilidade (Fase 4C): horários semanais, exceções,
- * feriados e bloqueios. Nenhuma regra de conflito/cancelamento vive aqui —
- * este controller só traduz HTTP <-> AdminAvailabilityService, exatamente
- * como AdminAgendaController faz com AppointmentService.
+ * Painel de disponibilidade: horários semanais, exceções, feriados e
+ * bloqueios. As regras de conflito e cancelamento ficam no
+ * AdminAvailabilityService.
  */
 class AdminAvailabilityController extends Controller
 {

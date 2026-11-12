@@ -5,9 +5,8 @@
 
 /*
  * Design tokens do site institucional da Dra. Valdizia Melo.
- * Paleta e tipografia fixadas pela referência visual aprovada
- * (ver PLANO-TECNICO.md e docs/design-notes.md). Não introduzir
- * cores novas fora deste bloco — tudo consome estes tokens.
+ * Não introduzir cores novas fora deste bloco — todo o layout
+ * consome estes tokens.
  */
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
@@ -42,7 +41,7 @@
         display: none !important;
     }
 
-    /* Foco visível consistente em toda a navegação por teclado (item 14 da Fase 2). */
+    /* Foco visível consistente em toda a navegação por teclado. */
     a:focus-visible,
     button:focus-visible,
     summary:focus-visible {

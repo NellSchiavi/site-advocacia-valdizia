@@ -11,8 +11,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * Calcula os horários realmente disponíveis para uma data e área de atuação,
- * seguindo o pipeline documentado no PLANO-TECNICO.md (seção 2):
+ * Calcula os horários realmente disponíveis para uma data e área de atuação:
  *
  *   horários padrão -> exceções -> feriados -> bloqueios -> agendamentos -> disponíveis
  *
@@ -60,11 +59,9 @@ class AvailabilityService
     /**
      * Intervalos "abertos" do expediente do dia — feriado, regra padrão e
      * exceções já resolvidos, mas ANTES de descontar os agendamentos
-     * existentes. Usado pela camada administrativa (Fase 4C) para checar se
-     * uma consulta já existente ainda cabe no expediente depois de uma
-     * alteração de disponibilidade, sem duplicar a resolução de
-     * regra/exceção/feriado que já vive aqui — só reaproveita os mesmos
-     * passos internos que horariosDisponiveis() já usa antes de gerar slots.
+     * existentes. Usado pela camada administrativa para checar se uma
+     * consulta existente ainda cabe no expediente após uma alteração de
+     * disponibilidade.
      *
      * @return array<int, array{0: int, 1: int}> intervalos em minutos desde a meia-noite
      */
@@ -228,10 +225,8 @@ class AvailabilityService
     }
 
     /**
-     * Público (não é regra de negócio, só conversão de formato) para que a
-     * camada administrativa (Fase 4C) trabalhe com os mesmos "minutos desde
-     * a meia-noite" ao comparar consultas existentes contra
-     * intervalosAbertosDoDia(), sem reimplementar o parsing.
+     * Converte "HH:MM" em minutos desde a meia-noite (mesma unidade de
+     * intervalosAbertosDoDia()).
      */
     public function paraMinutos(string $horaHms): int
     {

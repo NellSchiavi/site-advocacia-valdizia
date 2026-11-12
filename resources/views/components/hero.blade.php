@@ -1,37 +1,18 @@
 <section class="relative overflow-hidden bg-verde">
     {{--
-        Fotografia oficial da Dra. Valdizia Melo como CAMADA DE FUNDO do
-        Hero (ajuste visual solicitado — substitui a versão anterior com
-        mask-image radial/círculo). Composição em 3 camadas, todas dentro
-        desta section:
-          1) esta foto, absoluta, atrás de tudo, ancorada à direita;
-          2) um overlay verde com gradiente HORIZONTAL por cima dela —
-             opaco (#0f2d27, mesmo tom institucional do bg-verde) à
-             esquerda, esmaecendo até transparente à direita — é o
-             overlay que "come" a foto, não uma máscara na própria foto;
-          3) o conteúdo (texto/CTA/citação), sempre acima, com z-10.
+        Fotografia profissional como camada de fundo do Hero, em 3 camadas:
+          1) a foto, absoluta, ancorada à direita;
+          2) um overlay com gradiente horizontal — opaco (#0f2d27, mesmo tom
+             do bg-verde) à esquerda, transparente à direita;
+          3) o conteúdo (texto/CTA/citação), acima, com z-10.
 
-        Sem círculo, sem moldura, sem card: a foto não tem borda própria,
-        só a page's edges (topo/base/direita coincidem com os limites da
-        própria section — não há "painel" ao redor dela).
+        Oculta abaixo de lg (< 1024px): até esse ponto a grade tem coluna
+        única e o gradiente ficaria sobre o texto, prejudicando a
+        legibilidade. Em mobile e tablet o Hero usa o fundo verde sólido.
 
-        Escondida abaixo de lg (< 1024px): até esse ponto a grade continua
-        em coluna única (grid-cols-1) e o texto/diferenciais ocupam toda a
-        largura da section — sem uma coluna própria separando texto da
-        foto, o degradê ficaria sobreposto diretamente ao texto, prejudicando
-        a legibilidade (problema real encontrado e testado em 834px: a foto
-        cobria parte do H1 e dos diferenciais). Alargar a coluna de texto
-        para um breakpoint menor entraria em conflito com o layout de 4
-        colunas do <x-differentials />, que não deve ser alterado. Por isso
-        o efeito só aparece a partir de lg, exatamente onde a grade já vira
-        duas colunas reais (texto à esquerda, espaço à direita) — mobile E
-        tablet mantêm o Hero 100% verde sólido, como já era antes.
-
-        Arquivo fonte é pequeno (150×150) — cobrir a altura do Hero exige
-        upscale (inerente ao efeito pedido, não é ampliação gratuita).
-        Ao substituir por uma versão em alta resolução no MESMO caminho
-        (public/imagens/Foto-profissional-Valdizia.jpg), a nitidez sobe
-        automaticamente sem precisar recriar o efeito.
+        O arquivo atual é pequeno (150×150); substituí-lo por uma versão em
+        alta resolução no mesmo caminho (public/imagens/
+        Foto-profissional-Valdizia.jpg) melhora a nitidez sem outras mudanças.
     --}}
     <div class="absolute inset-0 hidden lg:block" aria-hidden="true">
         <img
@@ -48,16 +29,11 @@
     </div>
 
     {{--
-        A partir de 2xl (>=1536px) o container deixa de ficar travado em
-        max-w-7xl (1280px fixo) e passa a ser 90% do viewport. Motivo: a
-        camada de foto/gradiente acima é ancorada em right-0 da <section>
-        (sem max-width) e cresce com a tela inteira; um container preso a
-        1280px faz a coluna da citação "descolar" da foto em monitores
-        grandes (a foto cresce, o container não). Usar % em vez de um
-        max-width maior e fixo mantém a proporção citação/foto consistente
-        em qualquer largura grande (1536px, 1920px, 2560px, ...), não só em
-        um valor específico. Abaixo de 2xl nada muda — max-w-7xl continua
-        exatamente como antes (1440px, tablet e mobile preservados).
+        A partir de 2xl (>=1536px) o container passa de max-w-7xl para 90% do
+        viewport. A camada de foto acima acompanha a largura total da tela;
+        com o container fixo em 1280px, a citação se afastaria da foto em
+        monitores grandes. A largura percentual mantém a proporção
+        citação/foto em qualquer resolução.
     --}}
     <div class="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-stretch lg:grid-cols-12 2xl:w-[90%] 2xl:max-w-none">
         {{-- Coluna de texto --}}
@@ -91,10 +67,8 @@
              espaço acima dela é transparente, revelando a foto+overlay
              (camadas 1 e 2) por trás. --}}
         <div class="relative flex flex-col justify-end lg:col-span-6 xl:col-span-5">
-            {{-- Em 2xl a coluna fica mais larga (container fluido acima); sem
-                 um teto a citação esticaria em excesso em monitores muito
-                 grandes, então ela é limitada e alinhada à direita da
-                 coluna (contra a borda direita, sobre a foto). --}}
+            {{-- Em 2xl a citação tem largura máxima e fica alinhada à
+                 direita, sobre a foto. --}}
             <blockquote class="border-t border-white/10 bg-verde-escuro/60 px-6 py-8 lg:px-10 2xl:max-w-xl 2xl:ml-auto">
                 <p class="font-serif text-lg leading-snug text-white/90 italic">
                     &ldquo;Direito é instrumento de justiça e de novas oportunidades.&rdquo;

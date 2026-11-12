@@ -51,8 +51,8 @@
 
     <div class="mt-8 rounded-2xl border border-dourado/30 bg-white p-5">
         <p class="text-sm text-texto/70">
-            A agenda administrativa, disponibilidade, feriados e configurações chegam nas próximas fases do painel.
-            Por enquanto, este dashboard reflete apenas os dados já existentes no banco.
+            Use a Agenda para acompanhar e gerenciar as consultas, e a Disponibilidade para ajustar
+            horários semanais, exceções, feriados e bloqueios.
         </p>
     </div>
 </x-admin-layout>

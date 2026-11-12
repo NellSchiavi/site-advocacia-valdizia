@@ -9,11 +9,9 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * E-mail de redefinição de senha do painel administrativo (Fase 4F). O
- * token em si é gerado/validado 100% pelo broker nativo do Laravel
- * (Illuminate\Auth\Passwords\PasswordBroker + tabela password_reset_tokens)
- * — este Mailable só decide a apresentação, mantendo a identidade visual já
- * usada em ConsultaConfirmadaMail/ConsultaCanceladaMail.
+ * E-mail de redefinição de senha do painel administrativo. O token é gerado
+ * e validado pelo PasswordBroker nativo (tabela password_reset_tokens); este
+ * Mailable define apenas a apresentação.
  */
 class ResetPasswordMail extends Mailable
 {

@@ -21,12 +21,9 @@ class AreaAtuacao extends Model
     }
 
     /**
-     * Fase 5: nome como o site deve apresentar ao visitante/cliente final —
-     * a cliente pediu "Direito Cível" na comunicação pública, mas o nome
-     * interno (banco, painel administrativo, e-mails internos) permanece
-     * "Direito Civil" (é a grafia já usada em toda a arquitetura desde a
-     * Fase 0/2). Não altera o dado persistido — só a apresentação nas
-     * páginas/e-mails voltados ao cliente final.
+     * Nome apresentado ao público. A comunicação pública usa "Direito
+     * Cível", enquanto o nome interno (banco, painel administrativo)
+     * permanece "Direito Civil". Não altera o dado persistido.
      */
     protected function nomePublico(): Attribute
     {

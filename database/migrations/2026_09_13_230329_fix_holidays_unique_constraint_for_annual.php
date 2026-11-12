@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Fase 4C.2 — a constraint unique(['mes','dia','ano']) não protege
+        // A constraint unique(['mes','dia','ano']) não protege
         // feriados anuais: o MySQL trata NULL como distinto de outro NULL num
         // índice único, então duas linhas com ano=NULL (anual) para o mesmo
         // mês/dia nunca colidiam. Normaliza NULL para 0 (sentinela seguro —

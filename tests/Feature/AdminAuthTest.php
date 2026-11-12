@@ -8,9 +8,8 @@ use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 /**
- * Fase 4A: autenticação e estrutura base do painel administrativo. Cobre só
- * login/logout/autorização/dashboard — nenhuma funcionalidade de agenda,
- * disponibilidade, feriados ou configurações existe ainda.
+ * Autenticação e estrutura base do painel administrativo:
+ * login/logout/autorização/dashboard.
  */
 class AdminAuthTest extends TestCase
 {
@@ -73,7 +72,7 @@ class AdminAuthTest extends TestCase
         $this->assertSame('Credenciais inválidas.', $mensagemSenhaErrada);
 
         // E-mail inexistente — a mensagem precisa ser IDÊNTICA à de senha
-        // errada, para não revelar se o e-mail existe ou não (item 5).
+        // errada, para não revelar se o e-mail existe ou não.
         $respostaEmailInexistente = $this->post(route('admin.login.store'), [
             'email' => 'nao-existe@example.com',
             'password' => 'qualquer-coisa',
@@ -149,7 +148,7 @@ class AdminAuthTest extends TestCase
     }
 
     // ==========================================================
-    // Fase 4F — session fixation
+    // Session fixation
     // ==========================================================
 
     public function test_login_bem_sucedido_regenera_o_id_da_sessao(): void

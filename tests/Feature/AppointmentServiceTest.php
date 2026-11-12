@@ -33,7 +33,7 @@ class AppointmentServiceTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Vários testes desta classe usam travelTo() (Fase 4B.2) — garante
+        // Vários testes desta classe usam travelTo() — garante
         // que o "agora" congelado nunca vaze para o próximo teste.
         Carbon::setTestNow();
 
@@ -202,7 +202,7 @@ class AppointmentServiceTest extends TestCase
     }
 
     /**
-     * Fase 4B.2 — COMPLETED/NO_SHOW só são permitidos depois que a consulta
+     * COMPLETED/NO_SHOW só são permitidos depois que a consulta
      * já terminou (data + hora_fim <= agora). Todos os cenários usam uma
      * consulta 14:00–15:00 e travelTo() para controlar o "agora" com
      * precisão, evitando testes instáveis por depender do relógio real.

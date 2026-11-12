@@ -33,8 +33,7 @@ class AdminAuthController extends Controller
     {
         Auth::guard('web')->logout();
 
-        // Invalida a sessão e regenera o token CSRF — prática recomendada
-        // pelo Laravel para logout (item 3 da Fase 4A).
+        // Invalida a sessão e regenera o token CSRF.
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

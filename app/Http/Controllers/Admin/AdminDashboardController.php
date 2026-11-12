@@ -9,10 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\View\View;
 
 /**
- * Dashboard real porém simples (Fase 4A, item 8): só os números que já
- * existem no banco hoje. Nenhuma métrica é inventada — as demais telas do
- * painel (agenda, disponibilidade, feriados, configurações) chegam nas
- * próximas fases.
+ * Dashboard do painel com indicadores calculados a partir do banco.
  */
 class AdminDashboardController extends Controller
 {

@@ -27,10 +27,7 @@ Homestead.yaml
 Thumbs.db
 desktop.ini
 
-# Configuração local do Claude Code (por máquina/dev) — não faz parte do produto
-.claude/settings.local.json
-
-# Workaround local de certificado (interceptação TLS de antivírus/proxy corporativo) — nunca versionar
+# Certificados locais (proxy/antivírus com inspeção TLS) — nunca versionar
 /_certs/
 /docker/8.3/certs/*
 !/docker/8.3/certs/.gitkeep

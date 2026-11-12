@@ -17,10 +17,8 @@ Route::get('/politica-de-privacidade', function () {
 })->name('politica-privacidade');
 
 /**
- * Sitemap mínimo (Fase 5) — só as páginas públicas reais do site. Gerado
- * dinamicamente via url()/route() para refletir automaticamente o domínio
- * real assim que APP_URL for configurado em produção (Fase 6) — nenhum
- * domínio fixo é escrito aqui.
+ * Sitemap das páginas públicas. As URLs são geradas via route(), refletindo
+ * o domínio configurado em APP_URL.
  */
 Route::get('/sitemap.xml', function () {
     $urls = [
@@ -51,8 +49,7 @@ Route::prefix('agendamento')->name('agendamento.')->group(function () {
 });
 
 /**
- * Painel administrativo (Fase 4A — só autenticação e estrutura; agenda,
- * disponibilidade, feriados e configurações chegam nas próximas fases).
+ * Painel administrativo.
  */
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {
@@ -61,8 +58,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('throttle:10,1')
             ->name('login.store');
 
-        // Recuperação de senha (Fase 4F) — só faz sentido para quem ainda
-        // não está autenticado, mesmo escopo "guest" do login.
+        // Recuperação de senha.
         Route::get('/forgot-password', [AdminPasswordResetController::class, 'create'])
             ->name('password.request');
         Route::post('/forgot-password', [AdminPasswordResetController::class, 'store'])
@@ -83,8 +79,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('can:access-admin-panel')->group(function () {
             Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-            // Agenda administrativa (Fase 4B) — só autenticação já não basta:
-            // este grupo herda também o Gate "access-admin-panel" acima.
             Route::prefix('agenda')->group(function () {
                 Route::get('/', [AdminAgendaController::class, 'index'])->name('agenda');
                 Route::get('/{appointment}', [AdminAgendaController::class, 'show'])->name('agenda.show');
@@ -93,9 +87,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/{appointment}/nao-compareceu', [AdminAgendaController::class, 'naoCompareceu'])->name('agenda.nao-compareceu');
             });
 
-            // Disponibilidade administrativa (Fase 4C): horários semanais,
-            // exceções, feriados e bloqueios — tudo converge para o mesmo
-            // AvailabilityService via AdminAvailabilityService.
+            // Horários semanais, exceções, feriados e bloqueios.
             Route::prefix('disponibilidade')->name('disponibilidade.')->group(function () {
                 Route::get('/', [AdminAvailabilityController::class, 'index'])->name('index');
                 Route::post('/horarios/{diaDaSemana}', [AdminAvailabilityController::class, 'atualizarRegra'])

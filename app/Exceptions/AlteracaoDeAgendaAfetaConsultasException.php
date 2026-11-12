@@ -8,11 +8,10 @@ use RuntimeException;
 
 /**
  * Lançada dentro da transação de uma alteração administrativa de
- * disponibilidade (Fase 4C) quando ela afetaria consultas já existentes e o
- * administrador ainda não confirmou a operação — o AdminAvailabilityService
- * captura esta exceção para desfazer a alteração tentativa (rollback) e
- * devolver ao controller a lista exata de consultas que seriam canceladas,
- * para exibir a confirmação explícita exigida pelo item 6 da Fase 4C.
+ * disponibilidade quando ela afetaria consultas existentes e o administrador
+ * ainda não confirmou a operação. A exceção reverte a alteração (rollback) e
+ * leva ao controller a lista de consultas que seriam canceladas, para que a
+ * confirmação explícita seja exibida.
  */
 class AlteracaoDeAgendaAfetaConsultasException extends RuntimeException
 {

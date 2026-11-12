@@ -24,7 +24,7 @@ use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
 
 /**
- * Fase 4C: configuração administrativa da agenda (horários semanais,
+ * Configuração administrativa da agenda (horários semanais,
  * exceções, feriados, bloqueios) — sempre convergindo para o mesmo
  * AvailabilityService, nunca uma segunda lógica de disponibilidade.
  */
@@ -65,7 +65,7 @@ class AdminAvailabilityTest extends TestCase
     }
 
     // =====================================================================
-    // Seeders: configuração inicial (item 31 dos critérios de aceite)
+    // Seeders: configuração inicial
     // =====================================================================
 
     public function test_seeder_configura_horarios_padrao_de_segunda_a_quinta(): void
@@ -208,10 +208,10 @@ class AdminAvailabilityTest extends TestCase
             $this->assertSame($consulta->id, $e->consultasAfetadas->first()->id);
         }
 
-        // Nada foi persistido — rollback completo (item 7).
+        // Nada foi persistido — rollback completo.
         $this->assertDatabaseHas('availability_rules', ['day_of_week' => 1, 'hora_fim' => '18:00:00']);
         $this->assertSame(Appointment::STATUS_CONFIRMED, $consulta->fresh()->status);
-        // Fase 4E, item 18: alteração não confirmada não cancela e, portanto,
+        // Alteração não confirmada não cancela e, portanto,
         // não deve disparar nenhum e-mail de cancelamento.
         Mail::assertNothingSent();
     }
@@ -236,7 +236,7 @@ class AdminAvailabilityTest extends TestCase
     }
 
     /**
-     * Fase 4E, item 15/18: mais de uma consulta afetada pela mesma alteração
+     * Mais de uma consulta afetada pela mesma alteração
      * deve gerar uma notificação individual por consulta, cada uma para o
      * respectivo destinatário — nunca um e-mail só ou um destinatário errado.
      */
@@ -280,7 +280,7 @@ class AdminAvailabilityTest extends TestCase
     }
 
     /**
-     * Fase 4E, item 15/18: falha ao notificar UMA consulta afetada não pode
+     * Falha ao notificar UMA consulta afetada não pode
      * impedir a tentativa de notificar as demais, e a persistência (todas
      * canceladas) não depende do resultado do envio de e-mail.
      */
@@ -633,8 +633,8 @@ class AdminAvailabilityTest extends TestCase
     }
 
     // =====================================================================
-    // Fase 4C.2 — bug real da auditoria 4C.1: duplicação de feriado em
-    // duplo-submit, e a unicidade anual x específico correspondente.
+    // Feriados: sem duplicação em envio repetido, e unicidade anual x
+    // específico.
     // =====================================================================
 
     public function test_criar_feriado_anual_duas_vezes_nao_duplica(): void
@@ -658,12 +658,11 @@ class AdminAvailabilityTest extends TestCase
     }
 
     /**
-     * Decisão registrada na auditoria 4C.1 (item 6): o próprio
-     * scopeParaData() de Holiday já trata "recorrente anual" e "ano
-     * específico" como condições independentes (OR) — um feriado anual e um
-     * específico para a mesma data já podiam coexistir antes da correção, e
-     * a nova constraint (mes, dia, ano_normalizado) preserva exatamente essa
-     * coexistência, só bloqueando duas linhas com a mesma chave exata.
+     * O scopeParaData() de Holiday trata "recorrente anual" e "ano
+     * específico" como condições independentes (OR), então um feriado anual
+     * e um específico para a mesma data podem coexistir. A constraint
+     * (mes, dia, ano_normalizado) preserva essa coexistência e só bloqueia
+     * duas linhas com a mesma chave exata.
      */
     public function test_feriado_anual_e_feriado_especifico_coexistem_na_mesma_data(): void
     {
@@ -754,7 +753,7 @@ class AdminAvailabilityTest extends TestCase
     }
 
     // =====================================================================
-    // Fase 4C.2 — lock adquirido antes de decidir sobre consultas afetadas
+    // Lock adquirido antes de decidir sobre consultas afetadas
     // =====================================================================
 
     public function test_lock_de_agenda_e_adquirido_para_a_data_alvo_do_feriado(): void

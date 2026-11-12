@@ -30,8 +30,8 @@ return new class extends Migration
 
             // Coluna gerada: só assume valor (1) enquanto o agendamento está ativo
             // (pending/confirmed). Ao cancelar, vira NULL e libera o índice único
-            // abaixo para outro agendamento no mesmo horário — ver PLANO-TECNICO.md,
-            // seção 3 ("Camada 3", rede de segurança secundária de concorrência).
+            // abaixo para outro agendamento no mesmo horário (rede de segurança
+            // secundária de concorrência, além do lock por data).
             $table->unsignedTinyInteger('active_slot')
                 ->nullable()
                 ->virtualAs("IF(status in ('pending','confirmed'), 1, NULL)");

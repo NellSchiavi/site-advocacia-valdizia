@@ -9,7 +9,7 @@ class AreaAtuacaoSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ordem canônica usada em todo o site (Fase 0 e Fase 2): Previdenciário, Cível, Família.
+        // Ordem canônica usada em todo o site: Previdenciário, Cível, Família.
         $areas = [
             [
                 'slug' => 'direito-previdenciario',

@@ -1,256 +1,207 @@
 # Site Dra. Valdizia Melo — Advocacia e Assessoria Jurídica
 
-Site institucional com sistema de agendamento de consultas e painel administrativo para a Dra. Valdizia Melo (Direito Previdenciário, Cível e de Família).
+Site institucional com agendamento online de consultas e painel administrativo para o escritório da Dra. Valdizia Melo (Direito Previdenciário, Cível e de Família).
 
-Assável pelo link: https://dravaldiziamelo.com.br/ 
+Acesse: https://dravaldiziamelo.com.br/
 
-> Planejamento técnico completo (arquitetura, schema, decisões e riscos) em [`PLANO-TECNICO.md`](./PLANO-TECNICO.md). Este README cobre apenas o dia a dia de desenvolvimento.
+O sistema permite que o visitante conheça o escritório e agende uma consulta em horários realmente disponíveis, e que a advogada gerencie a agenda, o expediente, feriados e bloqueios pelo painel, sem alterar código.
 
-**Status atual**: fluxo público de agendamento e painel administrativo completos — autenticação (com recuperação de senha), agenda (consultas, cancelamento/conclusão/não comparecimento, busca por nome/e-mail/telefone), configuração de disponibilidade (horários semanais, exceções, feriados, bloqueios), e-mails transacionais (confirmação de agendamento, cancelamento manual e cancelamento por alteração de disponibilidade) e headers de segurança/CSP. **Ainda não há provedor de e-mail real configurado para produção nem ambiente de produção/Locaweb** — ver "O que ainda não foi implementado" abaixo.
-
-## Stack
-
-- PHP 8.3
-- Laravel 13
-- MySQL 8.4
-- Blade + Tailwind CSS 4 + Alpine.js
-- Docker / Laravel Sail para desenvolvimento local
-- Vite para build de assets front-end
-- PHPUnit para testes automatizados
-
-## O que já foi implementado
+## Funcionalidades
 
 ### Site público
-- **Homepage** institucional (Blade + Tailwind), com áreas de atuação, e link para a Política de Privacidade (conteúdo placeholder — ver seção abaixo).
-- **Agendamento público** (`/agendamento`): wizard em 5 passos (Área → Data → Horário → Dados → Confirmação). Dados obrigatórios do cliente: nome, e-mail, telefone e **assunto** da consulta (observação continua opcional) — validados no backend (`AgendarConsultaRequest` e `AppointmentService::agendar()`), nunca só no frontend. Ao confirmar com sucesso, o cliente recebe um **e-mail de confirmação** (`ConsultaConfirmadaMail`) com área, assunto, data e horário — enviado só depois que a transação de banco já comitou, nunca dentro dela.
-- **Disponibilidade real**, calculada pelo `AvailabilityService` (**única fonte de verdade**, usada pelo fluxo público, pela agenda administrativa e pela configuração de disponibilidade): expediente semanal → exceções da data → feriado → agendamentos já existentes.
-- **Proteção contra concorrência**: lock transacional por data (`agenda_locks` + `SELECT ... FOR UPDATE`) + revalidação da disponibilidade dentro da transação + índice único como rede de segurança adicional. Alterações administrativas de disponibilidade reaproveitam o mesmo lock, adquirido em ordem cronológica quando mais de uma data é afetada, para nunca gerar deadlock com uma reserva pública concorrente.
-- **URL de confirmação assinada e temporária** (`URL::temporarySignedRoute()`, válida por 2 dias, middleware `signed`).
-- **Tratamento explícito de falha de API** no wizard (`resources/js/agendamento.js`): nunca confunde erro técnico com "sem horários".
-- **Rate limiting**: `throttle:60,1` nos endpoints de disponibilidade/horários, `throttle:10,1` no envio do agendamento e no login administrativo.
-- **Política de Privacidade**: página em `/politica-de-privacidade`, conteúdo placeholder — precisa de revisão jurídica antes de produção.
+
+- **Página institucional** com apresentação, áreas de atuação, diferenciais, chamada para agendamento e contato (WhatsApp, e-mail e Instagram).
+- **Agendamento online** (`/agendamento`): assistente em 5 passos (Área → Data → Horário → Dados → Confirmação). Nome, e-mail, telefone e assunto são obrigatórios; a observação é opcional. Toda a validação é refeita no backend.
+- **Página de confirmação** acessível por URL assinada e temporária (válida por 2 dias).
+- **E-mail de confirmação** enviado ao cliente após o agendamento.
+- **Política de Privacidade** (`/politica-de-privacidade`).
+- **SEO básico**: title, description, canonical, Open Graph e `/sitemap.xml` gerado dinamicamente a partir de `APP_URL`.
 
 ### Painel administrativo (`/admin`)
-- **Login** (`/admin/login`) com e-mail/senha, hash nativo do Laravel, rate limiting por e-mail+IP (5 tentativas) além do `throttle` da rota, mensagem genérica de erro ("Credenciais inválidas.") que nunca revela se o e-mail existe. Sessão sempre regenerada após login bem-sucedido (previne session fixation); logout invalida a sessão e regenera o token CSRF.
-- **Recuperação de senha** (`/admin/forgot-password` → `/admin/reset-password/{token}`): usa o `PasswordBroker` nativo do Laravel (token com hash, expiração em 60 min, uso único — nada de criptografia própria). A resposta pública é **sempre a mesma mensagem genérica**, exista ou não conta associada ao e-mail informado, para não permitir enumeração de usuários. E-mail enviado via `ResetPasswordMail`, com a mesma identidade visual dos demais e-mails do projeto.
-- **Autorização**: todas as rotas de `/admin/*` (exceto login) exigem `auth` + `Gate` `access-admin-panel` (baseado em `users.role`) — nunca confia em dado vindo do frontend para decidir permissão.
-- **Dashboard**: números reais do banco (consultas de hoje, confirmadas, futuras, áreas ativas).
-- **Agenda** (`/admin/agenda`): visão diária/semanal, filtros por data/status/área, **busca por nome/e-mail/telefone** (condição adicional aos filtros, executada no banco), detalhe de cada consulta (nome, e-mail, telefone, assunto, observação, status, histórico) buscado sob demanda — nunca pré-carregado na listagem (minimização de dados pessoais). Ações **cancelar**, **concluir** e **marcar não comparecimento**, cada uma como uma rota explícita (o backend nunca aceita um campo `status` arbitrário vindo do cliente). `concluir`/`não comparecimento` só são permitidos depois que a consulta já terminou (`data + hora_fim <= agora`) — evita liberar por engano um horário futuro para um novo cliente. **Cancelar** envia ao cliente o mesmo e-mail de cancelamento (`ConsultaCanceladaMail`) usado pelo cancelamento por disponibilidade abaixo — um único template para os dois caminhos.
-- **Disponibilidade** (`/admin/disponibilidade`): a Dra. configura, sem tocar em código:
-  - **Horários semanais** — hora inicial/final e ativo/inativo por dia da semana;
-  - **Exceções de horário** — uma data específica com janela diferente da regra padrão;
-  - **Feriados** — data(s) tratada(s) como indisponíveis;
-  - **Bloqueios de dia inteiro** — "sem atendimento" numa data, com motivo opcional.
 
-  Qualquer alteração que afetaria consultas já agendadas **nunca é aplicada silenciosamente**: o sistema detecta o conflito (reaproveitando o próprio `AvailabilityService`, nunca uma segunda lógica de disponibilidade), mostra exatamente quais consultas seriam canceladas (data, horário, cliente) e só executa após confirmação explícita. Ao confirmar: a alteração de disponibilidade e o cancelamento das consultas afetadas acontecem na **mesma transação** (nunca um estado parcial); o cliente recebe um e-mail de cancelamento (uma falha de envio nunca desfaz a operação, já commitada); e tudo fica registrado no `AdminLog` (quem, o quê, quando, estado anterior/novo).
+- **Login** com e-mail e senha, limitação de tentativas e mensagem de erro genérica.
+- **Recuperação de senha** por e-mail, com resposta idêntica exista ou não a conta informada.
+- **Dashboard** com consultas do dia, confirmadas, futuras e áreas ativas.
+- **Agenda**: visão diária e semanal, filtros por data/status/área, busca por nome, e-mail ou telefone, detalhe da consulta sob demanda e as ações **cancelar**, **concluir** e **marcar não comparecimento**. Concluir e não comparecimento só são permitidos depois do término da consulta. O cancelamento envia e-mail ao cliente.
+- **Disponibilidade**: horários semanais, exceções de horário em datas específicas, feriados (anuais ou de um ano específico) e bloqueios de dia inteiro. Uma alteração que afete consultas já agendadas exige confirmação explícita, exibindo as consultas que serão canceladas; ao confirmar, a alteração e os cancelamentos ocorrem na mesma transação, os clientes são notificados por e-mail e a operação é registrada em log de auditoria (`admin_logs`).
 
-## E-mails transacionais (Fase 4E)
+## Tecnologias
 
-Três eventos disparam e-mail ao cliente, sempre pela mesma arquitetura: `AppointmentNotificationService` (`app/Services/AppointmentNotificationService.php`), chamado **depois** que a operação de banco correspondente já comitou (nunca dentro de uma `DB::transaction()`) — uma falha de envio é registrada via `Log::warning()` e nunca desfaz nem bloqueia a operação já persistida:
+- PHP 8.3 e Laravel 13
+- MySQL 8.4
+- Blade, Tailwind CSS 4 e Alpine.js 3
+- Vite 8
+- PHPUnit 12
+- Docker / Laravel Sail (ambiente local, com Mailpit para captura de e-mails)
 
-- **Confirmação de agendamento** (`ConsultaConfirmadaMail`) — disparado por `AppointmentController::store()`.
-- **Cancelamento manual** (`ConsultaCanceladaMail`) — disparado por `AdminAgendaController::cancelar()`.
-- **Cancelamento por alteração de disponibilidade** (`ConsultaCanceladaMail`, mesmo Mailable do item anterior) — disparado por `AdminAvailabilityService`, um e-mail por consulta afetada; a falha de um envio nunca impede a tentativa de envio dos demais.
+## Arquitetura e decisões técnicas
 
-Cada `Mailable` tem versão HTML e texto simples (`resources/views/emails/`), sem JS/CSS externo, seguindo a identidade visual do site (verde profundo, off-white, bege, dourado). O e-mail de cancelamento usa texto neutro ("Sua consulta foi cancelada") em vez de atribuir um motivo específico, já que é reaproveitado pelos dois caminhos de cancelamento.
+Aplicação monolítica renderizada no servidor (Blade), sem SPA. Os controllers apenas traduzem HTTP para os serviços de domínio em `app/Services`:
 
-## Segurança (Fase 4F)
+- **`AvailabilityService`** — única fonte de verdade da disponibilidade, usada pelo fluxo público, pela agenda e pelo painel de disponibilidade. Pipeline: expediente semanal → exceções da data → feriados → agendamentos existentes → horários livres. O frontend nunca decide o que está disponível.
+- **`AppointmentService`** — criação de agendamentos e transições de status. Cada ação de status é uma rota explícita; o backend nunca aceita um campo `status` arbitrário.
+- **`AdminAvailabilityService`** — orquestra alterações de disponibilidade: detecta consultas afetadas (via `AvailabilityService`), exige confirmação, cancela, registra auditoria e dispara as notificações.
+- **`AppointmentNotificationService`** — único ponto de envio de e-mail transacional ao cliente.
 
-- **Headers de segurança + CSP** (`App\Http\Middleware\SecurityHeaders`, aplicado a todo o grupo `web` — inclusive respostas geradas a partir de uma exceção, como o redirect de guest/auth, via `Exceptions::respond()` em `bootstrap/app.php`): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` restritiva, e um `Content-Security-Policy` com `default-src 'self'` (todo o front-end é self-hosted via Vite — sem CDN, sem Google Fonts externo).
-  - **Limitação conhecida e documentada**: o projeto usa a build padrão do Alpine.js (não a `@alpinejs/csp`), que exigiu duas concessões pontuais — confirmadas necessárias via Playwright real, não só leitura de código: `script-src` inclui `'unsafe-eval'` (Alpine avalia expressões de `x-data`/`@click`/etc. via `new Function()`), e `style-src` inclui `'unsafe-inline'` (`x-show`/`x-transition` — usados até no header público, presente em toda página — escondem/mostram elementos escrevendo direto em `element.style.*` via JS, o que a CSP trata como "inline style" mesmo sem nenhum `style=""` no HTML-fonte). Migrar para a build CSP do Alpine exigiria reescrever `x-data`/`x-show`/`@click` em várias views (refatoração grande, fora do escopo desta fase).
-- **Session**: `HttpOnly` e `SameSite=Lax` (padrão do Laravel), regeneração de sessão após login, invalidação após logout — nada alterado, já existia desde a Fase 4A. `SESSION_SECURE_COOKIE` continua orientado por ambiente (ver `.env.example`).
-- **Recuperação de senha**: ver seção do painel administrativo acima.
-- **CSRF**: auditado — todo formulário POST/PUT/PATCH/DELETE administrativo tem `@csrf`; `VerifyCsrfToken`/`ValidateCsrfToken` nunca foi desabilitado.
-- **XSS**: nenhum `{!! !!}` com dado de cliente em nenhuma view/e-mail — tudo passa por `{{ }}` (escape padrão do Blade) ou por `x-text` do Alpine (que usa `textContent`, nunca `innerHTML`). Testes de regressão cobrem payload `<script>` em nome/assunto/observação.
-- **SQL injection**: 100% Eloquent/query builder com bindings, inclusive a busca da Fase 4D (`LIKE`/`whereRaw` sempre parametrizados, nunca concatenação).
-- **Open redirect**: nenhum parâmetro `next`/`redirect` controlado pelo cliente existe na aplicação; `redirect()->intended()` do login usa a URL interna que o próprio Laravel capturou antes do redirect para o login, nunca um valor arbitrário do usuário.
+**Concorrência de agendamento.** Cada data tem uma linha em `agenda_locks`, travada com `SELECT ... FOR UPDATE` dentro da transação. A disponibilidade é revalidada com o lock em mãos, e um índice único em `appointments` funciona como rede de segurança adicional. Alterações administrativas que afetam várias datas adquirem os locks em ordem cronológica, evitando deadlock com reservas públicas simultâneas.
 
-## O que ainda não foi implementado
+**E-mails.** São enviados somente depois do commit da transação correspondente. Uma falha de envio é registrada em log (sem dados pessoais) e nunca desfaz a operação já persistida. Cada e-mail tem versão HTML e texto simples (`resources/views/emails/`). Eventos:
 
-- Provedor de e-mail real em produção — a arquitetura de mail já existe e funciona (capturada pelo Mailpit em desenvolvimento); falta configurar um provedor real (Resend ou SMTP do domínio) nas variáveis de ambiente de produção.
-- Lembrete automático de consulta, remarcação e cancelamento pelo próprio cliente (fora do escopo atual).
-- Configuração de agenda pelo painel: duração da consulta e intervalo entre consultas continuam centralizados em `configuracoes_globais` (55 min + 5 min, não editável pela Dra. nesta fase).
-- Múltiplos perfis administrativos (hoje só existe o papel `admin`).
-- Migração do Alpine.js para a build `@alpinejs/csp` (permitiria remover `'unsafe-eval'` da CSP) — refatoração grande, avaliar conforme necessidade real.
-- Configuração de ambiente de produção/Locaweb (hospedagem, domínio, certificado, variáveis de produção) — ver checklist abaixo.
+| Evento | Mailable | Origem |
+|---|---|---|
+| Confirmação de agendamento | `ConsultaConfirmadaMail` | `AppointmentController::store()` |
+| Cancelamento manual | `ConsultaCanceladaMail` | `AdminAgendaController::cancelar()` |
+| Cancelamento por alteração de disponibilidade | `ConsultaCanceladaMail` | `AdminAvailabilityService` |
+| Redefinição de senha | `ResetPasswordMail` | `User::sendPasswordResetNotification()` |
 
-## Checklist de produção (preparar na Fase 6)
+**Nomenclatura das áreas.** Internamente (banco e painel) a área se chama "Direito Civil"; na comunicação pública é exibida como "Direito Cível", via `AreaAtuacao::nomePublico()`.
 
-Nada disto é configurado nesta fase — só documentado para quando a Locaweb for configurada:
+## Segurança
 
-- `APP_ENV=production`, `APP_DEBUG=false` (nunca deixar `true` em produção — expõe stack trace/SQL/caminhos internos).
-- `APP_URL` com o domínio real, sempre `https://`.
-- `SESSION_SECURE_COOKIE=true` (só funciona com HTTPS de fato configurado).
-- HTTPS obrigatório (certificado válido no domínio real).
-- `MAIL_*` apontando para um provedor real (Resend ou SMTP do domínio) — nunca a senha pessoal da cliente.
-- `DB_*` com host/credenciais reais do banco de produção.
-- Gerar um `.env` real no servidor (nunca commitar) com `APP_KEY` própria de produção.
-- Permissões de escrita em `storage/` e `bootstrap/cache/`.
+- **Headers de segurança e CSP** (`App\Http\Middleware\SecurityHeaders`), aplicados a todo o grupo `web`, inclusive a respostas geradas por exceções (`bootstrap/app.php`): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` e `Content-Security-Policy` com `default-src 'self'`. Todo o front-end é servido pelo próprio domínio, sem CDN.
+- **Limitação conhecida da CSP**: a build padrão do Alpine.js exige `'unsafe-eval'` em `script-src` (avaliação de expressões via `new Function()`) e `'unsafe-inline'` em `style-src` (`x-show`/`x-transition` alteram `element.style`). Remover essas concessões requer migrar para a build `@alpinejs/csp`.
+- **Autenticação**: hash nativo do Laravel, limite de 5 tentativas por e-mail+IP além do `throttle` da rota, sessão regenerada no login e invalidada no logout. Todas as rotas do painel exigem `auth` e o Gate `access-admin-panel` (baseado em `users.role`).
+- **Recuperação de senha** via `PasswordBroker` nativo (token com hash, expiração de 60 minutos, uso único).
+- **Rate limiting**: `throttle:60,1` nos endpoints de disponibilidade, `throttle:10,1` no envio do agendamento e no login, `throttle:5,1` na recuperação de senha.
+- **CSRF** em todos os formulários; **XSS**: nenhuma saída sem escape com dado de cliente; **SQL**: apenas Eloquent/query builder com bindings.
+- **Minimização de dados**: a listagem da agenda não carrega e-mail, telefone ou observação dos clientes; esses dados só são lidos ao abrir o detalhe de uma consulta.
 
 ## Requisitos
 
-- Docker Desktop (com Docker Compose v2) instalado e em execução
+- Docker Desktop (com Docker Compose v2) em execução
 - Git
 
-Não é necessário ter PHP, Composer ou Node instalados na máquina — tudo roda dentro dos containers (Sail já inclui Node/npm).
+PHP, Composer e Node não precisam estar instalados na máquina: tudo roda dentro dos containers.
 
-## Instalação (primeira vez)
+## Instalação
 
 ```bash
-# 1. Clonar o repositório e entrar na pasta
-git clone <url-do-repositorio>
-cd Site-Valdizia
+# 1. Clonar o repositório
+git clone https://github.com/NellSchiavi/site-advocacia-valdizia.git
+cd site-advocacia-valdizia
 
-# 2. Copiar o arquivo de variáveis de ambiente
+# 2. Criar o arquivo de ambiente
 cp .env.example .env
 
-# 3. Construir as imagens Docker (primeira vez ou após mudanças no Dockerfile)
+# 3. Construir as imagens e subir os containers (aplicação, MySQL, Mailpit)
 docker compose build
-
-# 4. Subir os containers (app Laravel, MySQL, Mailpit)
 docker compose up -d
 
-# 5. Instalar as dependências PHP dentro do container
+# 4. Instalar as dependências PHP
 docker compose exec laravel.test composer install
 
-# 6. Gerar a chave da aplicação (se o .env copiado não tiver uma)
+# 5. Gerar a chave da aplicação
 docker compose exec laravel.test php artisan key:generate
 
-# 7. Rodar as migrations
-docker compose exec laravel.test php artisan migrate
+# 6. Criar o schema e popular com dados de desenvolvimento
+docker compose exec laravel.test php artisan migrate --seed
 
-# 8. Popular o banco com dados de desenvolvimento (ver seção "Seeders" abaixo)
-docker compose exec laravel.test php artisan db:seed
-
-# 9. Instalar as dependências JS e gerar o build de assets
+# 7. Instalar as dependências JS e gerar os assets
 docker compose exec laravel.test npm install
 docker compose exec laravel.test npm run build
 ```
 
-A aplicação fica disponível em `http://localhost`, o painel administrativo em `http://localhost/admin/login`, e o Mailpit (captura de e-mails locais, sem envio real) em `http://localhost:8025`.
+Endereços locais:
 
-### Nota sobre rede corporativa com inspeção TLS (proxy/antivírus)
+- Site: `http://localhost`
+- Painel administrativo: `http://localhost/admin/login`
+- Mailpit (e-mails capturados, sem envio real): `http://localhost:8025`
 
-Se a sua rede fizer inspeção HTTPS (comum em antivírus corporativos como Kaspersky, ou proxies de empresa), o `docker compose build` pode falhar com erro de certificado ao baixar pacotes. Nesse caso:
+### Redes com inspeção TLS (proxy/antivírus)
 
-1. Exporte o certificado raiz da sua ferramenta de segurança em formato `.crt`.
-2. Coloque o arquivo em `docker/8.3/certs/` (essa pasta é ignorada pelo Git — o certificado nunca é versionado).
-3. Rode `docker compose build` novamente.
+Se a rede fizer inspeção HTTPS, o `docker compose build` pode falhar com erro de certificado. Nesse caso, exporte o certificado raiz da ferramenta de segurança em formato `.crt`, coloque-o em `docker/8.3/certs/` (pasta ignorada pelo Git) e execute o build novamente.
 
-A pasta vazia não tem nenhum efeito — isso só é necessário se você realmente enfrentar erros de certificado.
-
-## Comandos do dia a dia
+## Comandos úteis
 
 | Ação | Comando |
 |---|---|
-| Iniciar os containers | `docker compose up -d` |
-| Parar os containers | `docker compose down` |
-| Ver logs da aplicação | `docker compose logs -f laravel.test` |
-| Acessar o shell do container da aplicação | `docker compose exec laravel.test bash` |
-| Acessar o MySQL via cliente de linha de comando | `docker compose exec mysql mysql -u sail -p laravel` (senha em `DB_PASSWORD` no `.env`) |
+| Iniciar / parar os containers | `docker compose up -d` / `docker compose down` |
+| Logs da aplicação | `docker compose logs -f laravel.test` |
+| Shell do container | `docker compose exec laravel.test bash` |
+| Cliente MySQL | `docker compose exec mysql mysql -u sail -p valdizia_melo` |
 | Rodar migrations | `docker compose exec laravel.test php artisan migrate` |
-| Desfazer a última migration | `docker compose exec laravel.test php artisan migrate:rollback` |
-| Recriar o banco do zero + seeders | `docker compose exec laravel.test php artisan migrate:fresh --seed` |
-| Rodar os seeders (sem recriar o schema) | `docker compose exec laravel.test php artisan db:seed` |
-| Rodar toda a suíte de testes | `docker compose exec laravel.test php artisan test` |
-| Rodar só um arquivo de teste | `docker compose exec laravel.test php artisan test --filter=AdminAvailabilityTest` |
-| Build de produção dos assets (Vite) | `docker compose exec laravel.test npm run build` |
-| Servidor de desenvolvimento do Vite (hot reload) | `docker compose exec laravel.test npm run dev` |
-| Abrir o Tinker (console interativo) | `docker compose exec laravel.test php artisan tinker` |
+| Recriar o banco com seeders | `docker compose exec laravel.test php artisan migrate:fresh --seed` |
+| Rodar os testes | `docker compose exec laravel.test php artisan test` |
+| Rodar um arquivo de teste | `docker compose exec laravel.test php artisan test --filter=AdminAvailabilityTest` |
+| Build dos assets | `docker compose exec laravel.test npm run build` |
+| Vite em modo desenvolvimento | `docker compose exec laravel.test npm run dev` |
 
-## Seeders (dados de desenvolvimento)
+## Dados de desenvolvimento (seeders)
 
-O comando `php artisan db:seed` cria:
+`php artisan db:seed` cria:
 
-- **Usuária administradora de desenvolvimento**: `dev@valdiziamelo.local` / `TrocarEssaSenha123!`
-  ⚠️ **Credencial de desenvolvimento apenas — nunca a senha real da cliente.** Deve ser trocada antes de qualquer uso fora do ambiente local/homologação (via Tinker, ou pela tela de login já pedindo a senha real depois de trocada no banco).
-- 3 áreas de atuação (Direito Previdenciário, Direito de Família, Direito Civil), todas ativas.
-- **Expediente padrão**: segunda a quinta 09:00–18:00, sexta 09:00–17:00; sábado e domingo nascem sem atendimento (sem regra cadastrada). Reconfigurável pela Dra. em `/admin/disponibilidade` a qualquer momento.
-- Feriados nacionais fixos (recorrência anual) **+ o feriado municipal de Ferraz de Vasconcelos (14/10)**. Feriados móveis (Carnaval, Sexta-feira Santa, Corpus Christi) precisam ser cadastrados manualmente todo ano pela tela de Feriados — não são chutados no seeder.
-- Configuração global: consulta de **55 minutos** com **5 minutos** de intervalo, antecedência mínima de 2h e máxima de 60 dias, modo de confirmação automático. Duração e intervalo não são editáveis pelo painel nesta fase (ficam centralizados aqui, de propósito).
+- **Administrador de desenvolvimento**: `dev@valdiziamelo.local` / `TrocarEssaSenha123!` — credencial exclusiva do ambiente local; nunca deve ser usada em homologação ou produção.
+- Áreas de atuação: Direito Previdenciário, Direito Civil e Direito de Família.
+- Expediente padrão: segunda a quinta 09:00–18:00, sexta 09:00–17:00; sábado e domingo sem atendimento.
+- Feriados nacionais fixos (recorrência anual) e o feriado municipal de Ferraz de Vasconcelos (14/10). Feriados móveis (Carnaval, Sexta-feira Santa, Corpus Christi) devem ser cadastrados anualmente pelo painel.
+- Configuração global: consultas de 55 minutos com 5 minutos de intervalo, antecedência mínima de 2 horas e máxima de 60 dias, confirmação automática. Duração e intervalo não são editáveis pelo painel.
 
 ## Variáveis de ambiente
 
-Ver `.env.example` para a lista completa e comentada. Nenhuma credencial real está commitada — apenas valores de desenvolvimento local (Sail/MySQL/Mailpit). Destaques:
+A lista completa e comentada está em `.env.example`, que contém apenas valores de desenvolvimento local. Destaques:
 
-- `APP_TIMEZONE=America/Sao_Paulo`, `APP_LOCALE=pt_BR` — timezone e locale da aplicação já configurados para o Brasil.
-- `DB_*` — em desenvolvimento aponta para o serviço `mysql` do `compose.yaml`; em produção deve apontar para o MySQL real via variáveis de ambiente do próprio host.
-- `MAIL_*` — em desenvolvimento usa o Mailpit (`MAIL_MAILER=smtp`, `MAIL_HOST=mailpit`), sem envio real. Em produção, apontar para um provedor real (Resend ou SMTP do domínio) através destas mesmas variáveis — o código (`App\Mail\ConsultaConfirmadaMail`, `App\Mail\ConsultaCanceladaMail`) não muda, só a configuração.
-- `QUEUE_CONNECTION` — hoje os e-mails são enviados de forma síncrona logo após a transação de banco confirmar (uma falha de envio é registrada em log e nunca desfaz a operação). A tabela `jobs` já existe caso o envio precise ser movido para fila no futuro.
-- `SESSION_SECURE_COOKIE` — documentado no próprio `.env.example`: definir como `true` em produção (HTTPS), deixado sem valor em desenvolvimento local (`http://localhost`).
+- `APP_TIMEZONE=America/Sao_Paulo` e `APP_LOCALE=pt_BR`.
+- `DB_*` — em desenvolvimento aponta para o serviço `mysql` do `compose.yaml`.
+- `MAIL_*` — em desenvolvimento usa o Mailpit. Em produção, configure um provedor transacional (ex.: Resend) ou o SMTP do domínio; o código não muda.
+- `NOTIFICATION_EMAIL` — e-mail de contato do escritório.
+- `SESSION_SECURE_COOKIE` — deve ser `true` em produção (HTTPS).
+- `QUEUE_CONNECTION` — os e-mails são enviados de forma síncrona após o commit; a tabela `jobs` já existe caso o envio passe a usar fila.
 
 ## Estrutura do projeto
 
 ```
 app/
-  Exceptions/
-    HorarioIndisponivelException.php              # slot deixou de estar disponível no momento de agendar
-    TransicaoDeStatusInvalidaException.php        # ação de status inválida pro estado/tempo atual da consulta
-    AlteracaoDeAgendaAfetaConsultasException.php  # alteração administrativa afeta consultas — exige confirmação
+  Exceptions/          # exceções de domínio (horário indisponível, transição de status inválida,
+                       # alteração de agenda que afeta consultas)
   Http/
-    Middleware/SecurityHeaders.php                  # headers de segurança + CSP (grupo "web")
-    Controllers/AppointmentController.php          # fluxo público de agendamento
-    Controllers/Admin/AdminAuthController.php       # login/logout do painel
-    Controllers/Admin/AdminPasswordResetController.php # recuperação de senha (PasswordBroker nativo)
-    Controllers/Admin/AdminDashboardController.php  # dashboard
-    Controllers/Admin/AdminAgendaController.php     # agenda administrativa (consultas)
-    Controllers/Admin/AdminAvailabilityController.php # disponibilidade administrativa (horários/exceções/feriados/bloqueios)
-    Requests/AgendarConsultaRequest.php             # validação do formulário público (inclui área ativa e assunto)
-    Requests/Admin/AdminLoginRequest.php            # autenticação + rate limit do login admin
-    Requests/Admin/AdminForgotPasswordRequest.php   # validação do e-mail na solicitação de recuperação
-    Requests/Admin/AdminResetPasswordRequest.php    # validação da nova senha
-  Mail/ConsultaConfirmadaMail.php                   # e-mail de confirmação de novo agendamento
-  Mail/ConsultaCanceladaMail.php                    # e-mail de cancelamento (manual ou por alteração administrativa)
-  Mail/ResetPasswordMail.php                        # e-mail de redefinição de senha
-  Models/
-    User, AreaAtuacao, AvailabilityRule, AvailabilityException,
-    Holiday, ConfiguracaoGlobal, Appointment, AgendaLock, AdminLog
-  Services/
-    AvailabilityService.php         # única fonte de verdade da disponibilidade (pipeline documentado no código)
-    AppointmentService.php          # criação/cancelamento/transição de status de agendamento
-    AdminAvailabilityService.php    # orquestra alterações administrativas: detecta conflito, cancela, notifica, audita
-    AppointmentNotificationService.php # único ponto de envio de e-mail transacional, sempre pós-persistência
+    Controllers/       # AppointmentController (público) e Admin/* (painel)
+    Middleware/        # SecurityHeaders
+    Requests/          # validação dos formulários público e administrativo
+  Mail/                # e-mails transacionais
+  Models/              # User, AreaAtuacao, AvailabilityRule, AvailabilityException, Holiday,
+                       # ConfiguracaoGlobal, Appointment, AgendaLock, AdminLog
+  Services/            # regras de negócio (ver "Arquitetura")
 database/
-  migrations/    # schema versionado (ver PLANO-TECNICO.md seção 5 para o desenho completo)
-  seeders/       # dados iniciais de desenvolvimento (ver seção "Seeders" acima)
-docker/
-  8.3/           # build context do container da aplicação (baseado no runtime oficial do Sail)
+  migrations/          # schema versionado
+  seeders/             # dados iniciais de desenvolvimento
+docker/8.3/            # imagem do container da aplicação (baseada no runtime do Sail)
 resources/
-  views/pages/       # homepage, agendamento (wizard), confirmação, política de privacidade
-  views/admin/        # login, recuperação de senha, dashboard, agenda e disponibilidade do painel
-  views/emails/        # e-mails de confirmação, cancelamento e redefinição de senha (HTML + texto simples)
-  js/agendamento.js    # wizard de agendamento público (Alpine.js) + tratamento de falha de API
-  js/agenda-admin.js   # modal de detalhe/ações da agenda administrativa
-tests/
-  Concerns/SeedsAgendaFixtures.php
-  Feature/AvailabilityServiceTest.php
-  Feature/AppointmentServiceTest.php
-  Feature/AppointmentConcurrencyTest.php
-  Feature/AgendamentoPublicoTest.php
-  Feature/AdminAuthTest.php
-  Feature/AdminAgendaTest.php
-  Feature/AdminAvailabilityTest.php
-  Feature/AdminPasswordResetTest.php
-  Feature/SecurityHeadersTest.php
-PLANO-TECNICO.md   # arquitetura, decisões, riscos e especificação completa do projeto
+  css/app.css          # design tokens (paleta e tipografia) e componentes utilitários
+  js/agendamento.js    # assistente de agendamento público (Alpine.js)
+  js/agenda-admin.js   # modal de detalhe e ações da agenda administrativa
+  views/pages/         # páginas públicas
+  views/admin/         # telas do painel
+  views/components/    # layout e seções reutilizáveis
+  views/emails/        # e-mails (HTML e texto simples)
+routes/web.php         # rotas públicas e do painel
+tests/Feature/         # testes de integração
 ```
 
-## Testes automatizados
-
-A suíte tem **164 testes** (437 assertions). Cobre, entre outras coisas:
-
-- toda a resolução de disponibilidade (expediente, exceções, feriados, bloqueios, sobreposição, duração/intervalo configuráveis);
-- concorrência: lock transacional por data impede dupla reserva (com processos concorrentes reais via `pcntl_fork` quando disponível);
-- fluxo público completo (validação, criação, confirmação assinada e temporária, rate limit, e-mail de confirmação com `Mail::fake()`, falha de envio não desfaz o agendamento, payload `<script>` em nome/assunto sempre escapado);
-- autenticação e autorização administrativa (Gate, rate limit de login, mensagens genéricas, sessão regenerada no login, sessão invalidada no logout);
-- recuperação de senha (solicitação com e-mail existente/inexistente sempre com a mesma mensagem, envio do e-mail, token válido/expirado/inválido/não reutilizável, confirmação de senha, login com a nova senha, rate limit);
-- headers de segurança/CSP presentes tanto em respostas normais quanto em respostas geradas por exceção (redirect de guest);
-- agenda administrativa (listagem, filtros, busca por nome/e-mail/telefone, detalhe, cancelar/concluir/não comparecimento, regra temporal — só permitido depois que a consulta termina; cancelamento manual dispara e-mail, falha de envio não desfaz o cancelamento; payload `<script>` sempre escapado; busca com caracteres especiais de SQL tratada como texto literal);
-- disponibilidade administrativa: alteração de horário/exceção/feriado/bloqueio sem consultas afetadas aplica direto; com consultas afetadas exige confirmação explícita e não aplica nada até confirmar (e não dispara e-mail); confirmação cancela as consultas, envia e-mail individual por consulta afetada (`Mail::fake()`), grava `AdminLog` e preserva o registro histórico (nunca apaga); falha de envio de uma notificação não impede o envio das demais nem desfaz nenhum cancelamento.
-
-Rodar tudo:
+## Testes
 
 ```bash
 docker compose exec laravel.test php artisan test
 ```
 
+A suíte usa o banco MySQL de testes criado pelo Sail e cobre:
+
+- resolução de disponibilidade (expediente, exceções, feriados, bloqueios, sobreposição, duração e intervalo);
+- concorrência de agendamento (lock por data, com processos concorrentes reais via `pcntl_fork` quando disponível);
+- fluxo público (validação, criação, URL assinada, rate limit, e-mail de confirmação, escape de conteúdo malicioso);
+- autenticação, autorização, sessão e recuperação de senha do painel;
+- headers de segurança e CSP, inclusive em respostas geradas por exceção;
+- agenda administrativa (filtros, busca, detalhe, transições de status, e-mail de cancelamento, XSS e SQL injection);
+- disponibilidade administrativa (confirmação de conflitos, rollback, cancelamento, auditoria e notificações).
+
+## Produção
+
+Checklist para o ambiente de produção:
+
+- `APP_ENV=production` e `APP_DEBUG=false`.
+- `APP_URL` com o domínio real em `https://`.
+- `APP_KEY` própria, gerada no servidor; o `.env` de produção nunca é versionado.
+- HTTPS com certificado válido e `SESSION_SECURE_COOKIE=true`.
+- `DB_*` com as credenciais do banco de produção.
+- `MAIL_*` apontando para um provedor de e-mail transacional.
+- Permissão de escrita em `storage/` e `bootstrap/cache/`.
+- Não executar o `AdminUserSeeder` em produção; criar o administrador com credenciais próprias.

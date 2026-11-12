@@ -11,7 +11,7 @@ use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
 
 /**
- * Prova a garantia de concorrência descrita no PLANO-TECNICO.md (seção 3):
+ * Verifica a garantia de concorrência do agendamento:
  * o lock por data em "agenda_locks" realmente serializa transações
  * concorrentes no MySQL, e — quando o ambiente suporta pcntl_fork — dois
  * processos disputando o mesmo horário produzem exatamente 1 agendamento

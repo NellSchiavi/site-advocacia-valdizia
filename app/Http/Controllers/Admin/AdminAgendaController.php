@@ -17,10 +17,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * Agenda administrativa (Fase 4B). Nenhuma regra de disponibilidade ou de
- * transição de status vive aqui — este controller só traduz HTTP <-> os
- * serviços de domínio já existentes (AvailabilityService/AppointmentService),
- * exatamente como o AppointmentController do fluxo público.
+ * Agenda administrativa. As regras de disponibilidade e de transição de
+ * status ficam em AvailabilityService/AppointmentService; este controller só
+ * faz a tradução HTTP.
  */
 class AdminAgendaController extends Controller
 {
@@ -52,10 +51,8 @@ class AdminAgendaController extends Controller
             ? $inicioIntervalo->addDays(6)
             : $dataSelecionada;
 
-        // Seleção explícita de colunas (item 8 — minimização de dados
-        // pessoais): a listagem nunca carrega e-mail/telefone/observação:
-        // esses campos só saem do banco quando o admin abre o detalhe de UMA
-        // consulta específica (ver show()).
+        // Minimização de dados pessoais: a listagem não carrega
+        // e-mail/telefone/observação, que só são lidos no detalhe (show()).
         $consultas = Appointment::query()
             ->select(['id', 'area_atuacao_id', 'nome_cliente', 'data', 'hora_inicio', 'hora_fim', 'status'])
             ->with('areaAtuacao:id,nome')
@@ -69,12 +66,9 @@ class AdminAgendaController extends Controller
 
         $consultasPorDia = $consultas->groupBy(fn (Appointment $appointment) => $appointment->data->toDateString());
 
-        // AvailabilityService calcula os horários livres de forma agnóstica de
-        // área (é uma agenda de recurso único — a Dra. Valdizia atende todas
-        // as áreas —, então o parâmetro de área não influencia o resultado,
-        // só é exigido pela assinatura do método). Reaproveitado como está,
-        // sem duplicar a lógica de disponibilidade. Calculado só na visão
-        // diária, para não multiplicar chamadas por 7 dias sem necessidade.
+        // A agenda é de recurso único (uma profissional atende todas as
+        // áreas), então a área passada é apenas exigida pela assinatura e não
+        // altera o resultado. Calculado só na visão diária.
         $horariosLivres = [];
         if ($visao === 'dia') {
             $areaReferencia = AreaAtuacao::query()->orderBy('id')->first();
@@ -127,8 +121,8 @@ class AdminAgendaController extends Controller
     }
 
     /**
-     * Detalhe completo de UMA consulta — buscado sob demanda (fetch) só
-     * quando o admin abre o card, nunca pré-carregado na listagem (item 8).
+     * Detalhe completo de uma consulta, carregado sob demanda quando o card
+     * é aberto.
      */
     public function show(Appointment $appointment): JsonResponse
     {
@@ -163,9 +157,8 @@ class AdminAgendaController extends Controller
             return back()->withErrors(['acao' => $e->getMessage()]);
         }
 
-        // Fora do fluxo de status em si (cancelar() já persistiu): mesma
-        // regra dos demais caminhos de cancelamento (item 5/12) — e-mail só
-        // depois que o cancelamento já está salvo, falha nunca desfaz nada.
+        // O e-mail só é enviado depois que o cancelamento foi persistido;
+        // uma falha no envio não desfaz a operação.
         $appointment->load('areaAtuacao:id,nome');
         $this->notificacoes->enviarCancelamento($appointment);
 

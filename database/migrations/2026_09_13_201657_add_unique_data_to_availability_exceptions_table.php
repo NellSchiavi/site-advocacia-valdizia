@@ -12,9 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('availability_exceptions', function (Blueprint $table) {
-            // Fase 4C: o painel administrativo passa a criar/editar exceções
-            // (horário especial) e bloqueios (fechado total) através desta
-            // mesma tabela, sempre 1 registro por data — a constraint única
+            // Exceções (horário especial) e bloqueios (fechado total) usam
+            // esta mesma tabela, com um registro por data — a constraint única
             // evita duas linhas conflitantes para o mesmo dia (ex.: um
             // "fechado total" e um "horário especial" coexistindo).
             $table->unique('data');

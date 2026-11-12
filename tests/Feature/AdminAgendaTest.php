@@ -15,10 +15,8 @@ use Tests\Concerns\SeedsAgendaFixtures;
 use Tests\TestCase;
 
 /**
- * Fase 4B: agenda administrativa. Cobre só autorização, listagem/filtros,
- * detalhe e as três ações de status (cancelar/concluir/não compareceu) —
- * disponibilidade, feriados, bloqueios e configuração de horários chegam em
- * fases futuras e não são tocados aqui.
+ * Agenda administrativa: autorização, listagem/filtros, busca, detalhe e as
+ * três ações de status (cancelar/concluir/não compareceu).
  */
 class AdminAgendaTest extends TestCase
 {
@@ -43,8 +41,8 @@ class AdminAgendaTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Alguns testes usam travelTo() (regra de transição temporal da
-        // Fase 4B.2) — garante que o "agora" congelado não vaze entre testes.
+        // Alguns testes usam travelTo() — garante que o "agora" congelado
+        // não vaze entre testes.
         Carbon::setTestNow();
 
         parent::tearDown();
@@ -93,14 +91,10 @@ class AdminAgendaTest extends TestCase
     }
 
     /**
-     * Auditoria de overflow (pós Fase 5): o card do modal de detalhe
-     * precisa de altura máxima + rolagem interna própria, senão conteúdo
-     * longo (observação extensa, ações + confirmação abertas) pode
-     * ultrapassar a viewport sem nenhuma forma de alcançar o restante —
-     * regressão real encontrada e corrigida nesta auditoria. PHPUnit não
-     * renderiza CSS/JS, então este teste só garante que as classes
-     * responsáveis pelo comportamento não sejam removidas por engano; o
-     * comportamento visual em si foi validado via Playwright.
+     * O card do modal de detalhe precisa de altura máxima e rolagem interna,
+     * senão conteúdo longo (observação extensa, ações + confirmação abertas)
+     * pode ultrapassar a viewport. Como o PHPUnit não renderiza CSS/JS, este
+     * teste garante apenas que as classes responsáveis não sejam removidas.
      */
     public function test_modal_de_detalhe_tem_altura_maxima_e_rolagem_interna(): void
     {
@@ -245,7 +239,7 @@ class AdminAgendaTest extends TestCase
 
     public function test_conclusao_de_consulta_futura_e_rejeitada(): void
     {
-        // Regra da Fase 4B.2: COMPLETED só é permitido depois que a consulta
+        // COMPLETED só é permitido depois que a consulta
         // termina — sem viajar no tempo, "criarConsulta()" agenda no futuro.
         $consulta = $this->criarConsulta();
 
@@ -306,7 +300,7 @@ class AdminAgendaTest extends TestCase
 
         // Mesmo enviando um "status" arbitrário no corpo do POST, o backend
         // nunca lê esse campo — a ação em si (cancelar) é que define o
-        // resultado (item 7 da Fase 4B).
+        // resultado.
         $this->actingAs($this->admin)->post(route('admin.agenda.cancelar', $consulta), [
             'status' => Appointment::STATUS_COMPLETED,
         ]);
@@ -339,14 +333,14 @@ class AdminAgendaTest extends TestCase
 
         $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', ['data' => $consulta->data->toDateString()]));
 
-        // Minimização (item 8): a listagem nunca embute e-mail/telefone —
+        // Minimização de dados: a listagem nunca embute e-mail/telefone —
         // eles só saem do banco no endpoint de detalhe, buscado sob demanda.
         $resposta->assertDontSee('privado@example.com');
         $resposta->assertDontSee('11955554444');
     }
 
     // ==========================================================
-    // Fase 4F — XSS e SQL injection (regressão)
+    // XSS e SQL injection (regressão)
     // ==========================================================
 
     public function test_payload_html_no_nome_do_cliente_nao_e_interpretado_como_html_na_agenda(): void
@@ -387,9 +381,8 @@ class AdminAgendaTest extends TestCase
         $this->criarConsulta(['nome_cliente' => 'Cliente Normal']);
 
         // Sem dígitos de propósito: um payload com "1" seria capturado pela
-        // normalização de telefone (item 6 da Fase 4D) e combinaria com
-        // qualquer telefone que contenha "11" — falso positivo já
-        // encontrado ao escrever este teste, não uma falha de segurança.
+        // normalização de telefone e combinaria com qualquer telefone que
+        // contenha "11" (falso positivo, não uma falha de segurança).
         $resposta = $this->actingAs($this->admin)->get(route('admin.agenda', [
             'data' => $segunda->toDateString(),
             'busca' => "' OR 'x'='x",
@@ -404,7 +397,7 @@ class AdminAgendaTest extends TestCase
     }
 
     // ==========================================================
-    // Fase 4E — e-mail de cancelamento manual
+    // E-mail de cancelamento manual
     // ==========================================================
 
     public function test_cancelamento_manual_dispara_email_de_cancelamento(): void
@@ -455,7 +448,7 @@ class AdminAgendaTest extends TestCase
     }
 
     // ==========================================================
-    // Fase 4D — busca por nome, e-mail ou telefone
+    // Busca por nome, e-mail ou telefone
     // ==========================================================
 
     public function test_busca_por_nome_completo(): void
@@ -706,9 +699,8 @@ class AdminAgendaTest extends TestCase
         $pendente->status = Appointment::STATUS_PENDING;
         $pendente->save();
 
-        // Atribuição direta (não via AppointmentService) — assim como os
-        // demais testes de regressão desta classe, não depende da regra
-        // temporal da Fase 4B.2 nem precisa de travelTo().
+        // Atribuição direta (não via AppointmentService): não depende da
+        // regra temporal de conclusão nem precisa de travelTo().
         $concluida = $this->criarConsulta(['nome_cliente' => 'Consulta Dois', 'hora_inicio' => '11:00:00', 'hora_fim' => '12:00:00']);
         $concluida->status = Appointment::STATUS_COMPLETED;
         $concluida->save();

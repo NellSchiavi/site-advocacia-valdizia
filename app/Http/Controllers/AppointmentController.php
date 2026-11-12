@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 
 /**
- * Fluxo público de agendamento (Fase 3). Nenhuma regra de disponibilidade ou
- * de concorrência vive aqui — este controller só traduz HTTP <-> os serviços
- * de domínio já validados na Fase 1 (AvailabilityService/AppointmentService).
+ * Fluxo público de agendamento. As regras de disponibilidade e concorrência
+ * ficam em AvailabilityService/AppointmentService; este controller só faz a
+ * tradução HTTP.
  */
 class AppointmentController extends Controller
 {
@@ -87,9 +87,8 @@ class AppointmentController extends Controller
             ]);
         }
 
-        // E-mail de confirmação só depois que agendar() já retornou — a
-        // transação já commitou, então uma falha de envio nunca desfaz o
-        // agendamento nem impede a resposta ao cliente (item 5/14).
+        // Enviado após o commit: uma falha no envio não desfaz o agendamento
+        // nem impede a resposta ao cliente.
         $appointment->load('areaAtuacao:id,nome');
         $notificacoes->enviarConfirmacao($appointment);
 

@@ -10,10 +10,9 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * E-mail enviado ao cliente quando uma consulta pública é criada com sucesso
- * (Fase 4E). Enviado pelo AppointmentController::store() só depois que
- * AppointmentService::agendar() já retornou (transação já commitada) — nunca
- * dentro da transação, nunca antes da persistência.
+ * E-mail enviado ao cliente quando uma consulta pública é criada. Disparado
+ * pelo AppointmentController::store() somente após o commit da transação de
+ * AppointmentService::agendar().
  */
 class ConsultaConfirmadaMail extends Mailable
 {

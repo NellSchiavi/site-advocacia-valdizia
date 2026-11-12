@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 
 /**
- * Fase 4F: confirma que os headers de segurança (SecurityHeaders) chegam em
+ * Confirma que os headers de segurança (SecurityHeaders) chegam em
  * respostas do grupo "web" — tanto no site público quanto no painel admin
  * (que exige redirect para /admin/login, mas a resposta de redirect também
  * passa pelo grupo "web" e já deve carregar os headers).
@@ -34,9 +34,8 @@ class SecurityHeadersTest extends TestCase
         $this->assertStringContainsString("frame-ancestors 'self'", $csp);
 
         // 'unsafe-inline' é aceito só em style-src (necessário para
-        // x-show/x-transition do Alpine, confirmado via Playwright na Fase
-        // 4F) — nunca em script-src, que é o que importaria para bloquear
-        // um <script> injetado por payload de XSS refletido.
+        // x-show/x-transition do Alpine) — nunca em script-src, que é o que
+        // importaria para bloquear um <script> injetado por XSS refletido.
         $scriptSrc = collect(explode(';', $csp))
             ->first(fn ($diretiva) => trim($diretiva) !== '' && str_starts_with(trim($diretiva), 'script-src'));
         $this->assertStringNotContainsString('unsafe-inline', $scriptSrc);

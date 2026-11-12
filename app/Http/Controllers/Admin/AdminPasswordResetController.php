@@ -11,16 +11,13 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
 
 /**
- * Fase 4F: recuperação de senha do painel administrativo. Usa o
- * PasswordBroker nativo do Laravel (token com hash em password_reset_tokens,
- * expiração e invalidação após uso já resolvidas pelo framework) — nenhuma
- * criptografia/expiração própria é implementada aqui.
+ * Recuperação de senha do painel administrativo via PasswordBroker nativo
+ * (token com hash em password_reset_tokens, expiração e invalidação após uso
+ * resolvidas pelo framework).
  *
- * Mensagem pública SEMPRE genérica (item 5 da Fase 4F): o retorno de
- * store() nunca varia entre "e-mail existe" e "e-mail não existe", e o
- * status retornado pelo broker é deliberadamente ignorado com esse
- * propósito — só usado para decidir SE um e-mail foi enviado, nunca para
- * mudar o que o usuário vê.
+ * A resposta pública de store() é sempre a mesma, exista ou não a conta: o
+ * status retornado pelo broker é ignorado de propósito, para evitar
+ * enumeração de usuários.
  */
 class AdminPasswordResetController extends Controller
 {
@@ -56,8 +53,7 @@ class AdminPasswordResetController extends Controller
         );
 
         if ($status !== Password::PASSWORD_RESET) {
-            // Mensagem única para token inválido/expirado/e-mail sem conta —
-            // mesmo princípio de não diferenciar respostas (item 5/6).
+            // Mensagem única para token inválido/expirado/e-mail sem conta.
             return back()->withErrors([
                 'email' => 'Não foi possível redefinir a senha. O link pode ter expirado — solicite um novo.',
             ]);

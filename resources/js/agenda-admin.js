@@ -9,8 +9,7 @@ const TEXTOS_CONFIRMACAO = {
 
 /**
  * Busca JSON tratando explicitamente os casos de falha — mesmo contrato do
- * buscarDisponibilidade() em resources/js/agendamento.js (duplicado aqui de
- * propósito: alterar o fluxo público não é necessário para a Fase 4B).
+ * buscarDisponibilidade() em resources/js/agendamento.js.
  *
  * @return {Promise<{ok: true, dados: any} | {ok: false, mensagem: string}>}
  */
@@ -43,7 +42,7 @@ async function buscarJson(url) {
 }
 
 /**
- * Painel da agenda administrativa (Fase 4B). Só cuida do modal de detalhe —
+ * Painel da agenda administrativa. Só cuida do modal de detalhe —
  * a listagem, filtros e navegação por data são links/forms GET normais,
  * server-rendered, sem JS necessário.
  */
@@ -61,8 +60,7 @@ export default function agendaAdministrativa() {
 
         async abrirDetalhe(id) {
             // Guarda o elemento que tinha foco (o cartão clicado) para
-            // devolver o foco a ele quando o modal fechar (auditoria de
-            // acessibilidade — "retorno de foco").
+            // devolver o foco a ele quando o modal fechar.
             this._elementoAcionador = document.activeElement;
 
             this._ultimoIdAberto = id;
@@ -105,8 +103,7 @@ export default function agendaAdministrativa() {
         /**
          * Mantém o foco dentro do modal enquanto ele estiver aberto (Tab no
          * último elemento focável volta ao primeiro, Shift+Tab no primeiro
-         * vai ao último) — auditoria de acessibilidade, item "foco dentro
-         * de modais". Recalculado a cada Tab porque o conjunto de elementos
+         * vai ao último). Recalculado a cada Tab porque o conjunto de elementos
          * focáveis muda conforme o estado (carregando/erro/detalhe/confirmando).
          */
         aprisionarFoco(event) {

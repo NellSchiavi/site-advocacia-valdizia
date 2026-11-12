@@ -21,10 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // "Estar autenticado" não é sinônimo de "ter permissão administrativa"
-        // (Fase 4A, item 4): o painel checa este Gate, não só o guard "web".
-        // Hoje só existe o papel "admin" (users.role), mas o seam já fica
-        // pronto para outros perfis: basta ajustar esta condição.
+        // Estar autenticado não implica permissão administrativa: o painel
+        // checa este Gate, não só o guard "web". Hoje só existe o papel
+        // "admin" (users.role); novos perfis exigem ajustar esta condição.
         Gate::define('access-admin-panel', function (User $user): bool {
             return $user->role === 'admin';
         });

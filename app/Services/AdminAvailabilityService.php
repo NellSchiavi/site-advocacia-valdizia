@@ -15,12 +15,11 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Orquestra alterações administrativas de disponibilidade (Fase 4C):
- * horário padrão semanal, exceções de horário, feriados e bloqueios de dia
- * inteiro. Nenhuma regra de disponibilidade é recalculada aqui — este
- * serviço só grava configuração e usa o AvailabilityService (já existente)
- * como única fonte de verdade para decidir se uma consulta já agendada
- * ainda cabe no expediente resultante.
+ * Orquestra alterações administrativas de disponibilidade: horário padrão
+ * semanal, exceções de horário, feriados e bloqueios de dia inteiro. Nenhuma
+ * regra de disponibilidade é recalculada aqui — o AvailabilityService é a
+ * única fonte de verdade para decidir se uma consulta já agendada ainda cabe
+ * no expediente resultante.
  *
  * Toda alteração segue o mesmo fluxo:
  *   1. abre transação e adquire o(s) lock(s) de agenda_locks (mesmo
@@ -57,11 +56,9 @@ class AdminAvailabilityService
      */
     public function atualizarRegraSemanal(int $diaDaSemana, array $dados, User $admin, bool $confirmado): Collection
     {
-        // Fase 4C.2: nem a data de hoje nem o horizonte de antecedência
-        // dependem de nenhuma linha travada por esta operação — calculados
-        // fora da transação, para que a PRIMEIRA leitura feita já DENTRO da
-        // transação seja a aquisição do lock (evita decidir com base num
-        // snapshot fixado antes do lock; ver auditoria da Fase 4C.1).
+        // Calculados fora da transação para que a primeira leitura dentro
+        // dela seja a aquisição do lock — assim nenhuma decisão é tomada com
+        // base em um snapshot fixado antes do lock.
         $horizonte = ConfiguracaoGlobal::atual()->antecedencia_maxima_dias;
         $datas = $this->datasFuturasParaDiaDaSemana($diaDaSemana, $horizonte);
 
@@ -178,25 +175,15 @@ class AdminAvailabilityService
      */
     public function salvarFeriado(?Holiday $existente, array $dados, User $admin, bool $confirmado): Collection
     {
-        // Calculado só a partir do input (mes/dia/ano) + relógio — não lê
-        // nenhuma tabela, então não tem por que fixar snapshot algum; pode
-        // ficar fora da transação sem risco (Fase 4C.2).
         $dataAlvo = $this->proximaOcorrenciaFeriado($dados['mes'], $dados['dia'], $dados['ano'] ?? null);
 
         $afetadas = DB::transaction(function () use ($existente, $dados, $admin, $confirmado, $dataAlvo) {
-            // Lock adquirido ANTES de qualquer leitura/escrita em "holidays"
-            // (Fase 4C.2 — auditoria 4C.1 apontou o lock vindo depois da
-            // escrita do feriado; a decisão sobre consultas afetadas precisa
-            // ser tomada com o lock já em mãos).
+            // O lock precede qualquer leitura/escrita em "holidays": a decisão
+            // sobre consultas afetadas precisa ser tomada com o lock em mãos.
             $this->appointments->adquirirLockDoDia($dataAlvo);
 
-            // Fase 4C.2 — bug real da auditoria 4C.1: sem id, o código sempre
-            // criava um Holiday novo, permitindo duplicar o mesmo feriado em
-            // duplo-submit. Agora localiza pela mesma chave semântica que o
-            // HolidaySeeder já usa (mes+dia+ano) antes de decidir se cria ou
-            // atualiza — idêntico, na prática, ao que "editar" já fazia via
-            // id, só que também funciona no primeiro envio (sem id) de um
-            // feriado que já existe.
+            // Localiza pela chave semântica (mes+dia+ano) quando não há id,
+            // evitando duplicar o mesmo feriado em um envio repetido.
             $feriado = $existente ?? Holiday::query()->firstOrNew([
                 'mes' => $dados['mes'],
                 'dia' => $dados['dia'],
@@ -251,8 +238,8 @@ class AdminAvailabilityService
     private function confirmarOuLancarConflito(Collection $afetadas, bool $confirmado): void
     {
         if ($afetadas->isNotEmpty() && ! $confirmado) {
-            // Lançar aqui dentro da transação força o rollback de tudo que já
-            // foi feito nesta operação (item 7 — nunca estado parcial).
+            // Lançar dentro da transação reverte toda a operação, sem deixar
+            // estado parcial.
             throw new AlteracaoDeAgendaAfetaConsultasException($afetadas);
         }
     }
@@ -269,8 +256,7 @@ class AdminAvailabilityService
      * intervalos abertos do expediente resultante. Usa
      * AvailabilityService::intervalosAbertosDoDia() (regra+exceção+feriado
      * já resolvidos) — nunca a grade de slots (horariosDisponiveis), que
-     * geraria falsos conflitos sempre que o horário de início mudasse (ver
-     * decisão registrada no relatório da Fase 4C).
+     * geraria falsos conflitos sempre que o horário de início mudasse.
      *
      * @return Collection<int, Appointment>
      */
@@ -318,9 +304,9 @@ class AdminAvailabilityService
     }
 
     /**
-     * Trava as datas em ordem cronológica antes de qualquer checagem — ordem
-     * consistente (item 16) evita deadlock com o AppointmentService, que
-     * também trava agenda_locks por data.
+     * Trava as datas em ordem cronológica antes de qualquer checagem. A ordem
+     * consistente evita deadlock com o AppointmentService, que também trava
+     * agenda_locks por data.
      *
      * @param  array<int, CarbonImmutable>  $datas
      */
@@ -334,10 +320,9 @@ class AdminAvailabilityService
     }
 
     /**
-     * Calcula a data-alvo (próxima ocorrência, hoje ou futura) só a partir
-     * dos campos submetidos — não depende do model Holiday existir/estar
-     * salvo, para poder ser chamado antes de qualquer leitura/escrita em
-     * "holidays" (Fase 4C.2, ver salvarFeriado()).
+     * Próxima ocorrência (hoje ou futura) calculada só a partir dos campos
+     * submetidos, para poder ser chamada antes de qualquer leitura/escrita em
+     * "holidays".
      */
     private function proximaOcorrenciaFeriado(int $mes, int $dia, ?int $ano): CarbonImmutable
     {
@@ -362,14 +347,9 @@ class AdminAvailabilityService
     }
 
     /**
-     * Só é chamado depois que DB::transaction() já retornou com sucesso —
-     * ou seja, a alteração e os cancelamentos já estão persistidos. Delega a
-     * AppointmentNotificationService (Fase 4E) — mesmo mecanismo de envio e
-     * de tratamento de falha usado pelo cancelamento manual e pela
-     * confirmação de agendamento, para não haver duas implementações
-     * diferentes para o mesmo tipo de comunicação (item 4). Cada envio é
-     * isolado ali dentro: uma falha não impede as demais notificações nem
-     * propaga para quem chamou este serviço.
+     * Chamado somente após o commit da transação. Cada envio é isolado pelo
+     * AppointmentNotificationService: uma falha não impede as demais
+     * notificações nem é propagada.
      */
     private function enviarEmailsDeCancelamento(Collection $afetadas): void
     {

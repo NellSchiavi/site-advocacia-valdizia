@@ -9,11 +9,11 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Validação + autenticação do login administrativo (Fase 4A, itens 2 e 5).
+ * Validação e autenticação do login administrativo.
  *
- * Mensagem de erro sempre genérica ("Credenciais inválidas.") — nunca revela
- * se o e-mail existe. Throttling por e-mail+IP segue o mesmo padrão nativo
- * documentado pelo próprio Laravel para proteção contra brute force.
+ * A mensagem de erro é sempre genérica ("Credenciais inválidas.") e não
+ * revela se o e-mail existe. O throttling por e-mail+IP segue o padrão
+ * nativo do Laravel contra força bruta.
  */
 class AdminLoginRequest extends FormRequest
 {
@@ -64,9 +64,8 @@ class AdminLoginRequest extends FormRequest
             ]);
         }
 
-        // Defesa em profundidade: mesmo com Auth::attempt() já validado, só
-        // um usuário com papel "admin" pode manter a sessão do painel aberta
-        // (item 4 — "estar autenticado" não implica ter permissão administrativa).
+        // Estar autenticado não implica permissão administrativa: só o papel
+        // "admin" pode manter a sessão do painel aberta.
         if (Auth::user()->role !== 'admin') {
             Auth::logout();
 

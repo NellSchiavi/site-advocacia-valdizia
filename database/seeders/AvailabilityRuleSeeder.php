@@ -6,11 +6,9 @@ use App\Models\AvailabilityRule;
 use Illuminate\Database\Seeder;
 
 /**
- * Configuração inicial definida na Fase 4C: segunda a quinta 09:00–18:00,
- * sexta 09:00–17:00; sábado e domingo permanecem sem regra (= bloqueados
- * por padrão). Tudo isso é reconfigurável depois pelo painel administrativo
- * (Fase 4C) — nenhum desses valores fica hardcoded em código além deste
- * seeder inicial.
+ * Expediente inicial: segunda a quinta 09:00–18:00, sexta 09:00–17:00;
+ * sábado e domingo ficam sem regra (bloqueados por padrão). Os valores podem
+ * ser alterados pelo painel administrativo.
  */
 class AvailabilityRuleSeeder extends Seeder
 {

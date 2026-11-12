@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 /**
- * Fluxo de criação de um agendamento (PLANO-TECNICO.md, seções 3 e 6):
+ * Fluxo de criação de um agendamento:
  *
  *  1. valida os dados recebidos
  *  2. calcula hora_fim a partir da duração configurada
@@ -165,10 +165,10 @@ class AppointmentService
     }
 
     /**
-     * Impede transições de status inválidas (Fase 4B, itens 7 e 9): o status
-     * é sempre lido do model recém-vinculado pela rota (portanto fresco do
-     * banco) — se outra requisição já cancelou/concluiu a consulta, esta
-     * checagem rejeita a ação em vez de sobrescrever o estado silenciosamente.
+     * Impede transições de status inválidas. O status é lido do model
+     * vinculado pela rota (fresco do banco): se outra requisição já
+     * cancelou/concluiu a consulta, a ação é rejeitada em vez de sobrescrever
+     * o estado silenciosamente.
      *
      * @param  array<int, string>  $statusPermitidos
      *
@@ -183,7 +183,7 @@ class AppointmentService
 
     /**
      * COMPLETED/NO_SHOW só podem ser aplicados depois que a consulta já
-     * terminou (Fase 4B.2) — senão o horário seria liberado no
+     * terminou — senão o horário seria liberado no
      * AvailabilityService antes da hora, permitindo double-booking. Critério:
      * data + hora_fim <= agora (limite inclusive: às 15:00 em ponto, uma
      * consulta 14:00–15:00 já pode ser marcada).
@@ -204,10 +204,8 @@ class AppointmentService
      * atual, serializando qualquer outra tentativa concorrente de agendamento
      * para o mesmo dia até este processo commitar ou reverter.
      *
-     * Público (Fase 4C): o AdminAvailabilityService também precisa adquirir
-     * este mesmo lock por data antes de checar/cancelar consultas afetadas
-     * por uma alteração administrativa — reaproveita o mecanismo existente
-     * em vez de criar um paralelo.
+     * Público porque o AdminAvailabilityService usa o mesmo lock antes de
+     * checar/cancelar consultas afetadas por uma alteração administrativa.
      */
     public function adquirirLockDoDia(CarbonImmutable $data): void
     {

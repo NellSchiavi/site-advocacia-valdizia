@@ -9,7 +9,7 @@ use RuntimeException;
  * comparecimento) é tentada num agendamento cujo status atual não permite
  * essa transição — ex.: cancelar uma consulta já concluída. Garante que o
  * estado real do banco (possivelmente alterado por outra requisição
- * concorrente) nunca é sobrescrito silenciosamente (Fase 4B, item 9).
+ * concorrente) nunca é sobrescrito silenciosamente.
  */
 class TransicaoDeStatusInvalidaException extends RuntimeException
 {
@@ -19,7 +19,7 @@ class TransicaoDeStatusInvalidaException extends RuntimeException
     }
 
     /**
-     * Fase 4B.2: COMPLETED/NO_SHOW só fazem sentido depois que o horário da
+     * COMPLETED/NO_SHOW só fazem sentido depois que o horário da
      * consulta realmente terminou — marcar uma consulta futura (ou em
      * andamento) como concluída/não comparecida liberaria o horário
      * prematuramente no AvailabilityService, permitindo double-booking.

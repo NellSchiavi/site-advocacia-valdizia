@@ -36,14 +36,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Fase 4F: substitui a notificação nativa do Laravel (Illuminate\Auth\
-     * Notifications\ResetPassword) por um Mailable próprio, só para manter a
-     * mesma identidade visual dos demais e-mails do projeto — o mecanismo de
-     * geração/validação do token continua 100% nativo (PasswordBroker),
-     * nada aqui reimplementa criptografia ou expiração própria. Falha de
-     * envio nunca deve propagar: quem chama isto (Password::sendResetLink())
-     * precisa continuar podendo devolver a mesma mensagem genérica ao
-     * usuário mesmo que o SMTP esteja indisponível.
+     * Substitui a notificação nativa (Illuminate\Auth\Notifications\
+     * ResetPassword) por um Mailable com a identidade visual do projeto. A
+     * geração e a validação do token continuam a cargo do PasswordBroker.
+     * Falhas de envio não são propagadas, para que Password::sendResetLink()
+     * sempre devolva a mesma mensagem genérica.
      */
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token)
     {
